@@ -5,11 +5,10 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=041
+REVISION=042
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Fix For Ping Victim"
-echo "- Self Updater In AutoMode"
 echo "- Cleanup Errors On Script Exit"
 echo "- Move Apache Logs To Session Folder"
 }
@@ -83,13 +82,21 @@ function pingvictim(){
 echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
 ping $VICTIM -c 20 -W 1 | awk '/bytes from/ { print $5 }'
 }
-function update(){
-stopshit
+function checkupdate(){
 pinginternet
 if [ "$INTERNETTEST" != "icmp_seq=1" ]; then echo "[$FAIL] No Internet Connection";
 else
+newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/accesspoint.sh | grep REVISION= | cut -d'=' -f2)
+if [ "$newrevision" -gt "$REVISION" ]; then update; fi
+fi
+}
+function update(){
+echo "#####################################"
+echo "# PLEASE UPDATE THIS SCRIPT         #"
+echo "#####################################"
+stopshit
 echo "Attempting To Update"
-wget -O accesspoint.sh.tmp http://www.jefferywilkins.com/files/scripts/accesspoint.sh
+wget -nv -t 1 -T 10 -O accesspoint.sh.tmp https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/accesspoint.sh
 if [ -f accesspoint.sh.tmp ]; then rm accesspoint.sh; mv accesspoint.sh.tmp accesspoint.sh;
 echo "CHMOD & EXIT"
 chmod 755 accesspoint.sh
@@ -99,7 +106,6 @@ else
 echo "Update [$FAIL]..."
 read -e -p "Try Again? " enter
 update
-fi
 fi
 }
 function stopshit(){
@@ -624,6 +630,8 @@ done
 echo "#####################################"
 echo "# REVISION: $REVISION                     #"
 echo "#####################################"
+echo ""
+checkupdate
 echo ""
 todo
 echo ""

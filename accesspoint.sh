@@ -14,13 +14,17 @@ echo "- Cleanup Errors On Script Exit"
 ####################
 #  CONFIG SECTION  #
 ####################
-AUTOMODE=FALSE             #You Can Set AutoMode To TRUE | FALSE
-at0IP=192.168.10.254       #ip address of moniface
-at0IPBLOCK=192.168.10.0    #subnet
-NETMASK=255.255.255.0      #subnetmask
-DHCPS=192.168.10.1         #dhcp start range
-DHCPE=192.168.10.250       #dhcp end range
-BROADCAST=192.168.10.255   #broadcast address
+AUTOMODE=TRUE              #You Can Set AutoMode To TRUE | FALSE
+at0IP=192.168.0.1          #ip address of moniface
+NETMASK=255.255.0.0        #subnetmask
+WILDCARD=0.0.255.255       #dunno what this is
+# =>
+# NETWORK=/16
+at0IPBLOCK=192.168.0.0     #subnet
+DHCPS=192.168.0.1          #dhcp start range
+DHCPE=192.168.255.254      #dhcp end range
+BROADCAST=192.168.255.255  #broadcast address
+# Hosts/Net 65534          #CLASS C, Private Internet
 DHCPL=1h                   #time for dhcp lease
 folder=`pwd`/SESSION_$RANDOM
 sslstrip=`which sslstrip`

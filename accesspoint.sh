@@ -98,9 +98,15 @@ if [ "$INTERNETTEST" != "64" ]; then echo "| [$FAIL] No Internet Connection";
 else
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update; fi
+else
+echo ""
+echo "#####################################"
+echo "# NO UPDATE IS REQUIRED             #"
+echo "#####################################"; fi
 fi
 }
 function update(){
+echo ""
 echo "#####################################"
 echo "# PLEASE UPDATE THIS SCRIPT         #"
 echo "#####################################"

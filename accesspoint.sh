@@ -14,7 +14,7 @@ echo "- Cleanup Errors On Script Exit"
 ####################
 #  CONFIG SECTION  #
 ####################
-AUTOMODE=TRUE             #You Can Set AutoMode To TRUE | FALSE
+AUTOMODE=FALSE             #You Can Set AutoMode To TRUE | FALSE
 at0IP=192.168.0.1          #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
@@ -143,14 +143,19 @@ kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null
 killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
 iptables --flush
 iptables --table nat --flush
+iptables --table mangle --flush
 iptables --delete-chain
 iptables --table nat --delete-chain
+iptables --table mangle --delete-chain
 echo "0" > /proc/sys/net/ipv4/ip_forward
 }
 function firewall(){
 iptables -P FORWARD ACCEPT
+iptables -P INPUT ACCEPT
 iptables -A FORWARD -i at0 -j ACCEPT
 iptables -t nat -A POSTROUTING -j MASQUERADE
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function dhcpd3server(){
@@ -784,11 +789,11 @@ if [ "$ERRORFILE" = "" ]; then ERRORFILE=index.php; fi
 echo "ErrorDocument 404 /$ERRORFILE" > /etc/apache2/conf.d/localized-error-pages
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
+ln -s /var/log/apache2/access.log $folder/access.log
+ln -s /var/log/apache2/error.log $folder/error.log
 APACHECONF=/etc/apache2/sites-available
 if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
 else cp $APACHECONF/default $APACHECONF/default~; fi
-replace ${APACHE_LOG_DIR} $folder/ -- $APACHECONF/default &>$LOG
-replace /var/log/apache2/ $folder/ -- $APACHECONF/default &>$LOG
 service apache2 start > /dev/null
 #iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP:53
 iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP:53

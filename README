@@ -1,4 +1,8 @@
-REVISION=047
+REVISION=048
 
 REV 47:
 fixed some typos
+
+REV 48:
+fixed bridge mode
+tons of code cleanup

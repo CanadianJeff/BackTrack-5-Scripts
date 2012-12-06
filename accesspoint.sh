@@ -14,15 +14,15 @@ echo "- Cleanup Errors On Script Exit"
 ####################
 #  CONFIG SECTION  #
 ####################
-at0IP=192.168.0.1          #ip address of moniface
+at0IP=10.0.0.1              #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
 # NETWORK=/16
-at0IPBLOCK=192.168.0.0     #subnet
-DHCPS=192.168.0.1          #dhcp start range
-DHCPE=192.168.255.254      #dhcp end range
-BROADCAST=192.168.255.255  #broadcast address
+at0IPBLOCK=10.0.0.0        #subnet
+DHCPS=10.0.0.1             #dhcp start range
+DHCPE=10.0.255.254         #dhcp end range
+BROADCAST=10.0.255.255     #broadcast address
 # Hosts/Net 65534          #CLASS C, Private Internet
 DHCPL=1h                   #time for dhcp lease
 ######################
@@ -63,8 +63,6 @@ trap control_c SIGINT
 function cleanup(){
 ifconfig $LANIFACE down
 ifconfig $ATHIFACE down
-ifconfig br-lan down
-brctl delbr br-lan
 mv $LOG $HOME/accesspoint.log
 rm -rf $folder
 mv $APACHECONF/default~ $APACHECONF/default
@@ -137,7 +135,9 @@ kill `cat $folder/pwned.pid 2>$LOG` &>/dev/null
 kill `cat $folder/web.pid 2>$LOG` &>/dev/null
 kill `cat $pid 2>$LOG` &>/dev/null
 fi; done
-kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null
+if [ -f /var/run/dhcpd/at0.pid ]; then
+kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null;
+fi
 killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
 iptables --flush
 iptables --table nat --flush
@@ -234,12 +234,16 @@ while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* No DHCP Server Found On $LANIFACE (br-lan) [$FAIL] *"
 rm $folder/bridge.log
-ifconfig br-lan down
-brctl delbr br-lan
+brlandown
+sleep 2
 brlan
 done
 echo ""
 pinggateway
+}
+function brlandown(){
+ifconfig br-lan down
+brctl delbr br-lan
 }
 function lanifacemenu(){
 echo "+===================================+"

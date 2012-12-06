@@ -156,6 +156,7 @@ killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/de
 iptables --flush
 iptables --table nat --flush
 iptables --table mangle --flush
+iptables -X
 iptables --delete-chain
 iptables --table nat --delete-chain
 iptables --table mangle --delete-chain
@@ -314,7 +315,7 @@ echo "+===================================+"
 echo ""
 read -e -p "Option: " mode
 echo ""
-if [ "$mode" = "" ]; then clear; poisonmenu; fi
+if [ "$mode" != 1-3 && != U && != Q ]; then clear; poisonmenu; fi
 if [ "$mode" = "U" ]; then update; fi
 if [ "$mode" = "Q" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
 }

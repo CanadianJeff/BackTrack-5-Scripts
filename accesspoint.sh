@@ -34,6 +34,21 @@ mkdir $folder
 touch $LOG
 touch $folder/missing.log
 ######################
+function banner(){
+echo "
+######## ##     ## #### ##          ##      ## #### ######## #### 
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
+######   ##     ##  ##  ##          ##  ##  ##  ##  ######    ##  
+##        ##   ##   ##  ##          ##  ##  ##  ##  ##        ##  
+##         ## ##    ##  ##          ##  ##  ##  ##  ##        ##  
+########    ###    #### ########     ###  ###  #### ##       #### 
+
++-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
+|B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
++-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
+"
+}
 function automode(){
 ATHIFACE=wlan0
 ESSID=WiFi
@@ -59,9 +74,8 @@ monitormodestop
 cleanup
 exit 0
 }
-trap control_c SIGINT
+trap control_c INT
 function cleanup(){
-ifconfig $LANIFACE down
 ifconfig $ATHIFACE down
 mv $LOG $HOME/accesspoint.log
 rm -rf $folder
@@ -675,9 +689,11 @@ mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
 # Dep Check
+banner
 echo "#####################################"
 echo "# REVISION: $REVISION                     #"
 echo "#####################################"
+sleep 5
 echo ""
 echo "#####################################"
 if [ "$mydistro" = "BackTrack" ]; then echo "$mydistro Version $myversion Release $myrelease"; fi

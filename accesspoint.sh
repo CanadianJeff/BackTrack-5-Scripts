@@ -710,14 +710,7 @@ myrelease="`awk '{print $3}' /etc/issue`"
 banner
 sleep 5
 pinginternet
-if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection"; fi
-if [ "$INTERNET" = "TRUE" ]; then echo "[$OK] We Have Internet :-)"; dnscheck; fi
-if [ "$DNS" = "FALSE" ]; then echo "[$FAIL] DNS Error To raw.github.com"; fi
-if [ "$INTERNET" = "TRUE" ]; && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 echo ""
-echo "#####################################"
-echo "# REVISION: $REVISION                     #"
-echo "#####################################"
 echo "+===================================+"
 echo "| Dependency Check                  |"
 echo "+===================================+"
@@ -729,6 +722,10 @@ echo "";
 exit 0; fi
 if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
+echo "| [$OK] SCRIPT REVISION: $REVISION"
+if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection : - ("; fi
+if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
+if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
 type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
 if [ "$mydistro" = "BackTrack" ]; then
 type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $folder/missing.log;}
@@ -751,6 +748,7 @@ type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchange
 type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $folder/missing.log;}
 # apt-get install python-dev
 echo "+===================================+"
+if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 stopshit
 modprobe tun
 echo ""

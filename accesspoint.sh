@@ -31,12 +31,13 @@ DHCPL=1h                   #time for dhcp lease
 termwidth=130
 folder=~/.evilwifi
 initpath=`pwd`
-if [ -d "$folder" ]; then mkdir $folder 2> /dev/null; fi
+if [ -d != $folder ]; then mkdir $folder 2> /dev/null; fi
 settings=$folder/evilwifi.conf
 sessionfolder=~/.evilwifi/SESSION_$RANDOM
 LOG=$sessionfolder/evilwifi.log
+mkdir $sessionfolder
 touch $LOG
-touch $sessionfolder/LOG/missing.log
+touch $folder/missing.log
 ######################
 function banner(){
 echo "
@@ -515,7 +516,6 @@ let start=start+1
 done
 sleep 999
 killall mdk3
-fi
 attackmenu
 }
 # +===================================+

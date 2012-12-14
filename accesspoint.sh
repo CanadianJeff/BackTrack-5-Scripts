@@ -14,7 +14,7 @@ echo "- Create Settings File For AutoMode"
 ####################
 #  CONFIG SECTION  #
 ####################
-at0IP=10.0.0.1              #ip address of moniface
+at0IP=10.0.0.1             #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
@@ -709,28 +709,26 @@ myrelease="`awk '{print $3}' /etc/issue`"
 # Dep Check
 banner
 sleep 5
-echo ""
-if [ "$mydistro" = "BackTrack" ]; then echo "* DETECTED: $mydistro Version $myversion Release $myrelease"; fi
-if [ "$mydistro" = "Ubuntu" ]; then echo "* DETECTED: $mydistro Version $myversion"; fi
-echo ""
 pinginternet
 if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection"; fi
-if [ "$INTERNET" = "TRUE" ]; then echo "[$OK] We Have Internet :-)" dnscheck; fi
+if [ "$INTERNET" = "TRUE" ]; then echo "[$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$DNS" = "FALSE" ]; then echo "[$FAIL] DNS Error To raw.github.com"; fi
 if [ "$INTERNET" = "TRUE" && "$DNS" = "TRUE" ]; then checkupdate; fi
 echo ""
-echo "+===================================+"
-echo "| Dependency Check                  |"
-echo "+===================================+"
 echo "#####################################"
 echo "# REVISION: $REVISION                     #"
 echo "#####################################"
+echo "+===================================+"
+echo "| Dependency Check                  |"
+echo "+===================================+"
 # Are we root?
 if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
 else
 echo "[$FAIL] Please Run This Script As Root or With Sudo!";
 echo "";
 exit 0; fi
+if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
+if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
 type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
 if [ "$mydistro" = "BackTrack" ]; then
 type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $folder/missing.log;}

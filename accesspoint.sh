@@ -5,11 +5,11 @@
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=048
+REVISION=049
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
-echo "- Fix For Ping Victim"
 echo "- Cleanup Errors On Script Exit"
+echo "- Create Settings File For AutoMode"
 }
 ####################
 #  CONFIG SECTION  #
@@ -86,9 +86,12 @@ echo > /etc/dnsmasq.conf
 echo "Log File: $HOME/accesspoint.log"
 }
 function pinginternet(){
-echo "Pinging Google [8.8.8.8] with 64 bytes of data:"
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
-if [ "$INTERNETTEST" = "64" ]; then echo "Reply from 8.8.8.8: bytes=64"; else echo "Request timed out."; fi
+if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
+}
+function dnscheck(){
+DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping google.com -c 1 -w 3))
+if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
 }
 function pinggateway(){
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
@@ -106,7 +109,7 @@ echo "+===================================+"
 echo "| RUNNING SCRIPT UPDATE CHECK       |"
 echo "+===================================+"
 pinginternet
-if [ "$INTERNETTEST" != "64" ]; then echo "| [$FAIL] No Internet Connection";
+if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection";
 else
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
@@ -119,11 +122,10 @@ fi
 }
 function update(){
 echo ""
-echo "#####################################"
-echo "# PLEASE UPDATE THIS SCRIPT         #"
-echo "#####################################"
 stopshit
-echo "Attempting To Update"
+echo "#####################################"
+echo "# ATTEMPTING TO DOWNLOAD UPDATE     #"
+echo "#####################################"
 wget -nv -t 1 -T 10 -O accesspoint.sh.tmp https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/accesspoint.sh
 if [ -f accesspoint.sh.tmp ]; then rm accesspoint.sh; mv accesspoint.sh.tmp accesspoint.sh;
 echo "CHMOD & EXIT"
@@ -709,21 +711,19 @@ myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
 # Dep Check
 banner
-echo "#####################################"
-echo "# REVISION: $REVISION                     #"
-echo "#####################################"
 sleep 5
 echo ""
-echo "#####################################"
-if [ "$mydistro" = "BackTrack" ]; then echo "$mydistro Version $myversion Release $myrelease"; fi
-if [ "$mydistro" = "Ubuntu" ]; then echo "$mydistro Version $myversion Release $myrelease"; fi
-echo "#####################################"
+if [ "$mydistro" = "BackTrack" ]; then echo "* DETECTED: $mydistro Version $myversion Release $myrelease"; fi
+if [ "$mydistro" = "Ubuntu" ]; then echo "* DETECTED: $mydistro Version $myversion"; fi
 echo ""
 checkupdate
 echo ""
 echo "+===================================+"
 echo "| Dependency Check                  |"
 echo "+===================================+"
+echo "#####################################"
+echo "# REVISION: $REVISION                     #"
+echo "#####################################"
 # Are we root?
 if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
 else

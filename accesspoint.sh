@@ -90,7 +90,7 @@ INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
 }
 function dnscheck(){
-DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping google.com -c 1 -w 3))
+DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
 }
 function pinggateway(){
@@ -108,9 +108,6 @@ function checkupdate(){
 echo "+===================================+"
 echo "| RUNNING SCRIPT UPDATE CHECK       |"
 echo "+===================================+"
-pinginternet
-if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection";
-else
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
@@ -716,7 +713,11 @@ echo ""
 if [ "$mydistro" = "BackTrack" ]; then echo "* DETECTED: $mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Ubuntu" ]; then echo "* DETECTED: $mydistro Version $myversion"; fi
 echo ""
-checkupdate
+pinginternet
+if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection"; fi
+if [ "$INTERNET" = "TRUE" ]; then echo "[$OK] We Have Internet :-)" dnscheck; fi
+if [ "$DNS" = "FALSE" ]; then echo "[$FAIL] DNS Error To raw.github.com"; fi
+if [ "$INTERNET" = "TRUE" && "$DNS" = "TRUE" ]; then checkupdate; fi
 echo ""
 echo "+===================================+"
 echo "| Dependency Check                  |"

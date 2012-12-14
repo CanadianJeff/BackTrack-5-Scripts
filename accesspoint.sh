@@ -333,7 +333,7 @@ echo "+===================================+"
 echo ""
 read -e -p "Option: " mode
 echo ""
-if [ "$mode" != 1-3 && != U && != Q ]; then clear; poisonmenu; fi
+if [ "$mode" = "" ]; then clear; poisonmenu; fi
 if [ "$mode" = "U" ]; then update; fi
 if [ "$mode" = "Q" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
 }

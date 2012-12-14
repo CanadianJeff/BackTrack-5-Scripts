@@ -135,6 +135,14 @@ read -e -p "Try Again? " enter
 update
 fi
 }
+function installaircrack(){
+cd /usr/src
+if [ -d "/usr/src/aircrack-ng" ]; then rm -rfv aircrack-ng; fi
+svn co http://trac.aircrack-ng.org/svn/trunk/ aircrack-ng
+cd aircrack-ng
+make && make install
+cd $folder
+}
 function stopshit(){
 service apache2 stop &>$LOG
 service dhcp3-server stop &>$LOG
@@ -710,7 +718,6 @@ myrelease="`awk '{print $3}' /etc/issue`"
 banner
 sleep 5
 pinginternet
-echo ""
 echo "+===================================+"
 echo "| Dependency Check                  |"
 echo "+===================================+"
@@ -726,6 +733,8 @@ echo "| [$OK] SCRIPT REVISION: $REVISION"
 if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection : - ("; fi
 if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
+type -P aircrack-ng &>/dev/null || { echo "| [FATAL] aircrack-ng"; echo "aircrack-ng" >> $folder/missing.log;
+if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then installaircrack; else exit 0; fi }
 type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
 if [ "$mydistro" = "BackTrack" ]; then
 type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $folder/missing.log;}
@@ -733,7 +742,6 @@ fi
 if [ "$mydistro" != "BackTrack" ]; then
 type -P dhcpd &>/dev/null || { echo "| [$FAIL] dhcpd"; echo "dhcpd" >> $folder/missing.log;}
 fi
-type -P aircrack-ng &>/dev/null || { echo "| [$FAIL] aircrack-ng"; echo "aircrack-ng" >> $folder/missing.log;}
 type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng"; echo "airdrop-ng" >> $folder/missing.log;}
 type -P xterm &>/dev/null || { echo "| [$FAIL] xterm"; echo "xterm" >> $folder/missing.log;}
 type -P iptables &>/dev/null || { echo "| [$FAIL] iptables"; echo "iptables" >> $folder/missing.log;}
@@ -748,6 +756,7 @@ type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchange
 type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $folder/missing.log;}
 # apt-get install python-dev
 echo "+===================================+"
+echo ""
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 stopshit
 modprobe tun

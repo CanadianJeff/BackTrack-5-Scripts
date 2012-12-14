@@ -713,7 +713,7 @@ pinginternet
 if [ "$INTERNET" = "FALSE" ]; then echo "[$FAIL] No Internet Connection"; fi
 if [ "$INTERNET" = "TRUE" ]; then echo "[$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$DNS" = "FALSE" ]; then echo "[$FAIL] DNS Error To raw.github.com"; fi
-if [ "$INTERNET" = "TRUE" && "$DNS" = "TRUE" ]; then checkupdate; fi
+if [ "$INTERNET" = "TRUE" ]; && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 echo ""
 echo "#####################################"
 echo "# REVISION: $REVISION                     #"

@@ -339,13 +339,13 @@ echo "| 2) Bridge Mode | Man In The Middle "
 echo "| 3) WEP/WPA Hack | AutoPwn          "
 echo "| 4) Beacon Flood | Fake AP Flood    "
 echo "| 5) Deauth Mode | Boot People Off   "
-echo "| *) Quit Mode | YOU SUCK LOOSER     "
+echo "| ********************************** "
+echo "|     CTRL + C QUITS AT ANYTIME      "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " mode
 echo ""
 if [ "$mode" = "" ]; then clear; poisonmenu; fi
-if [ "$mode" != "1-5" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
 }
 function verbosemenu(){
 echo "+===================================+"

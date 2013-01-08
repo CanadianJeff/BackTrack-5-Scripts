@@ -146,14 +146,26 @@ cd aircrack-ng
 make && make install
 cd $initpath
 }
+function getpids(){
+pgrep airbase-ng > $sessionfolder/airbase-ng.pid
+pgrep dnsmasq > $sessionfolder/dnsmasq.pid
+}
 function stopshit(){
 service apache2 stop &>$LOG
 service dhcp3-server stop &>$LOG
 service dnsmasq stop &>$LOG
 service network-manager stop &>$LOG
 for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
-kill `cat $folder/airbase-ng.pid 2>$LOG` &>/dev/null
-kill `cat $folder/dnsmasq.pid 2>$LOG` &>/dev/null
+while [ -s $sessionfolder/airbase-ng.pid ]; do
+getpids
+sleep 2
+kill `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
+done
+while [ -s $sessionfolder/dnsmasq.pid ]; do
+getpids
+sleep 2
+kill `awk '{ print $1 }' < <(cat $sessionfolder/dnsmasq.pid)` &>/dev/null
+done
 kill `cat $folder/probe.pid 2>$LOG` &>/dev/null
 kill `cat $folder/pwned.pid 2>$LOG` &>/dev/null
 kill `cat $folder/web.pid 2>$LOG` &>/dev/null

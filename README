@@ -1,4 +1,4 @@
-REVISION=049
+REVISION=050
 
 REV 47:
 fixed some typos
@@ -11,3 +11,7 @@ REV 49:
 more code cleanup
 banner added
 better update check
+
+REV 50:
+more cleanup
+getting ready to add .conf file

@@ -81,7 +81,9 @@ exit 0
 }
 trap control_c INT
 function cleanup(){
+TAPIFACE=at0
 ifconfig $ATHIFACE down
+ifconfig $TAPIFACE down
 mv $APACHECONF/default~ $APACHECONF/default
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
@@ -159,11 +161,13 @@ for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
 while [ -s $sessionfolder/airbase-ng.pid ]; do
 getpids
 sleep 2
+echo "Killing Airbase-NG PIDs"
 kill `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
 done
 while [ -s $sessionfolder/dnsmasq.pid ]; do
 getpids
 sleep 2
+echo "Killing DNSMASQ PIDs"
 kill `awk '{ print $1 }' < <(cat $sessionfolder/dnsmasq.pid)` &>/dev/null
 done
 kill `cat $folder/probe.pid 2>$LOG` &>/dev/null
@@ -531,6 +535,50 @@ sleep 999
 killall mdk3
 attackmenu
 }
+function battery(){
+BATTERY=/proc/acpi/battery/BAT0
+
+REM_CAP=`grep "^remaining capacity" $BATTERY/state | awk '{ print $3 }'`
+FULL_CAP=`grep "^last full capacity" $BATTERY/info | awk '{ print $4 }'`
+BATSTATE=`grep "^charging state" $BATTERY/state | awk '{ print $3 }'`
+
+CHARGE=`echo $(( $REM_CAP * 100 / $FULL_CAP ))`
+
+NON='\033[00m'
+BLD='\033[01m'
+RED='\033[01;31m'
+GRN='\033[01;32m'
+YEL='\033[01;33m'
+
+COLOUR="$RED"
+
+case "${BATSTATE}" in
+   'charged')
+   BATSTT="$BLD=$NON"
+   ;;
+   'charging')
+   BATSTT="$BLD+$NON"
+   ;;
+   'discharging')
+   BATSTT="$BLD-$NON"
+   ;;
+esac
+
+if [ "$CHARGE" -gt "99" ]
+then
+   CHARGE=100
+fi
+
+if [ "$CHARGE" -gt "15" ]
+then
+   COLOUR="$YEL"
+fi
+
+if [ "$CHARGE" -gt "30" ]
+then
+   COLOUR="$GRN"
+fi
+}
 # +===================================+
 # | ANYTHING UNDER THIS IS UNTESTED   |
 # | AND CAN BE USED FOR WEP CRACKING  |
@@ -836,13 +884,13 @@ fi
 #
 airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
 #airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 120 -v > $folder/airbaseng.log &
-sleep 4
-ps aux | awk '/[a]irbase-ng/ { print $2 }' > $sessionfolder/airbase-ng.pid
+sleep 2
 if [ "$mode" != "2" ]; then
 ifconfig at0 up
 ifconfig at0 $at0IP netmask $NETMASK;
 ifconfig at0 mtu $MTU;
 route add -net $at0IPBLOCK netmask $NETMASK gw $at0IP; fi
+wireshark -i at0 -k &
 #
 if [ "$DHCPSERVER" = "1" ]; then dnsmasqserver; fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3server; fi

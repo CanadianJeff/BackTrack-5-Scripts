@@ -203,13 +203,14 @@ iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dpo
 function hostapdconfig(){
 TAPIFACE=$ATHIFACE
 karma_enabled=1
+echo "driver=nl80211" >> $folder/hostapd.conf
 echo "enable_karma=$karma_enabled" > $folder/hostapd.conf
 echo "karma_black_white=1" >> $folder/hostapd.conf
 echo "interface=$TAPIFACE" >> $folder/hostapd.conf
 echo "logger_syslog=-1" >> $folder/hostapd.conf
-echo "logger_syslog_level=0" >> $folder/hostapd.conf
+echo "logger_syslog_level=2" >> $folder/hostapd.conf
 echo "logger_stdout=-1" >> $folder/hostapd.conf
-echo "logger_stdout=0" >> $folder/hostapd.conf
+echo "logger_stdout=2" >> $folder/hostapd.conf
 echo "dump_file=$sessionfolder/logs/hostapd.dump" >> $folder/hostapd.conf
 echo "ctrl_interface=/var/run/hostapd" >> $folder/hostapd.conf
 echo "ctrl_interface_group=0" >> $folder/hostapd.conf
@@ -222,8 +223,8 @@ echo "max_num_sta=2000" >> $folder/hostapd.conf
 echo "rts_threshold=2347" >> $folder/hostapd.conf
 echo "fragm_threshold=2346" >> $folder/hostapd.conf
 echo "macaddr_acl=0" >> $folder/hostapd.conf
-#echo "accept_mac_file=$sessionfolder/hostapd.accept" >> $folder/hostapd.conf
-#echo "deny_mac_file=$sessionfolder/hostapd.deny" >> $folder/hostapd.conf
+echo "accept_mac_file=$sessionfolder/hostapd.accept" >> $folder/hostapd.conf
+echo "deny_mac_file=$sessionfolder/hostapd.deny" >> $folder/hostapd.conf
 echo "auth_algs=3" >> $folder/hostapd.conf
 echo "ignore_broadcast_ssid=0" >> $folder/hostapd.conf
 #echo "wep_default_key=0" >> $folder/hostapd.conf

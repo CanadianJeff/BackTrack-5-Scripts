@@ -1,0 +1,16 @@
+REV 47:
+fixed some typos
+
+REV 48:
+fixed bridge mode
+tons of code cleanup
+
+REV 49:
+more code cleanup
+banner added
+better update check
+
+REV 50:
+more cleanup
+getting ready to add .conf file
+added battery level check

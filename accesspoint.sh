@@ -143,6 +143,7 @@ function pspids(){
 pgrep airbase-ng > $sessionfolder/pids/airbase-ng.pid
 pgrep dnsmasq > $sessionfolder/pids/dnsmasq.pid
 pgrep hostapd > $sessionfolder/pids/hostapd.pid
+pgrep dumpcap > $sessionfolder/pids/dumpcap.pid
 }
 function stopshit(){
 pspids
@@ -158,7 +159,7 @@ while [ -s $sessionfolder/pids/hostapd.pid ]; do
 sleep 2
 pspids
 echo "Killing Hostapd"
-kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null
+kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/hostapd.pid)` &>/dev/null
 airmon-ng stop mon.$TAPIFACE &>/dev/null
 done
 while [ -s $sessionfolder/pids/dnsmasq.pid ]; do
@@ -166,6 +167,12 @@ sleep 2
 pspids
 echo "Killing DNSMASQ"
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null
+done
+while [ -s $sessionfolder/pids/dumpcap.pid ]; do
+sleep 2
+pspids
+echo "Killing DUMPCAP"
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dumpcap.pid)` &>/dev/null
 done
 for pid in `ls $sessionfolder/pids/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
 kill `cat $sessionfolder/pids/probe.pid 2>$LOG` &>/dev/null
@@ -484,9 +491,9 @@ echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 #echo "cur_time=$(awk '// {print $4}' < <(date))" >> $folder/probe.sh
-echo "awk '/Probe/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", strftime(\"%H%M%S\",\$1), \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
+echo "awk '/Probe/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", strftime(\"%H:%M:%S\"), \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
-echo "awk '/AP-STA-CONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H%M%S\",\$1), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "awk '/AP-STA-CONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H:%M:%S\"), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh

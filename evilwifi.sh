@@ -223,8 +223,8 @@ echo "max_num_sta=2000" >> $folder/hostapd.conf
 echo "rts_threshold=2347" >> $folder/hostapd.conf
 echo "fragm_threshold=2346" >> $folder/hostapd.conf
 echo "macaddr_acl=0" >> $folder/hostapd.conf
-echo "accept_mac_file=$sessionfolder/hostapd.accept" >> $folder/hostapd.conf
-echo "deny_mac_file=$sessionfolder/hostapd.deny" >> $folder/hostapd.conf
+#echo "accept_mac_file=$sessionfolder/hostapd.accept" >> $folder/hostapd.conf
+#echo "deny_mac_file=$sessionfolder/hostapd.deny" >> $folder/hostapd.conf
 echo "auth_algs=3" >> $folder/hostapd.conf
 echo "ignore_broadcast_ssid=0" >> $folder/hostapd.conf
 #echo "wep_default_key=0" >> $folder/hostapd.conf
@@ -237,7 +237,7 @@ echo "disassoc_low_ack=1" >> $folder/hostapd.conf
 }
 function starthostapd(){
 echo "starting hostapd....."
-hostapd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $folder/hostapd.conf -B
+hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $folder/hostapd.conf -B
 sleep 20
 }
 function dhcpd3config(){
@@ -384,6 +384,20 @@ echo "IF YOU THINK THIS IS AN ERROR PLEASE REPORT IT TO"
 echo "THE SCRIPT AUTHOR OR CHECK IF YOUR CARD IS SUPPORTED"
 echo ""; fi
 }
+function internetmenu(){
+echo "+===================================+"
+echo "| Internet Detected :-)             |"
+echo "+===================================+"
+echo "| 1) Install Missing Depends         "
+echo "| 2) Update Depends                  "
+echo "| 3) Force Update Script             "
+echo "| 4) Run Script                      "
+echo "+===================================+"
+echo ""
+read -e -p "Option: " internetmenu
+echo ""
+if [ "$internetmenu" = "" ]; then clear; internetmenu; fi
+}
 function poisonmenu(){
 echo "+===================================+"
 echo "| Choose You're Poison?             |"
@@ -465,7 +479,31 @@ gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 function nodhcpserver(){
 echo "* Not Using A Local DHCP Server *"
 }
-function taillogs(){
+function taillogshostapd(){
+echo > /var/log/syslog
+# for (i=9; i<=NF; i++)
+echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
+#echo "cur_time=$(awk '// {print $4}' < <(date))" >> $folder/probe.sh
+echo "awk '/Probe/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", strftime(\"%H%M%S\",\$1), \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
+echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
+echo "awk '/AP-STA-CONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H%M%S\",\$1), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
+#echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
+echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
+chmod a+x $folder/probe.sh
+chmod a+x $folder/pwned.sh
+chmod a+x $folder/web.sh
+gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=WEB -e "/bin/bash $folder/web.sh"
+gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PWNED -e "/bin/bash $folder/pwned.sh"
+gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/bash $folder/probe.sh"
+#VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
+#VICTIMIP=
+#VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
+#gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
+#"tail -f $sessionfolder/error.log"
+}
+function taillogsairbase(){
 echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
@@ -620,6 +658,41 @@ then
 fi
 
 echo $CHARGE
+}
+function settings(){
+echo ""
+echo "+===================================+"
+echo "| Listing Wireless Devices          |"
+echo "+===================================+"
+airmon-ng | awk '/phy/ {print $1}'
+echo "+===================================+"
+echo ""
+echo "Pressing Enter Uses Default Settings"
+echo ""
+read -e -p "RF Moniter Interface [wlan0]: " ATHIFACE
+if [ "$ATHIFACE" = "" ]; then ATHIFACE=wlan0; fi
+ifconfig $ATHIFACE up
+MAC=$(ifconfig $ATHIFACE | awk '/HWaddr/ { print $5 }')
+read -e -p "Spoof MAC Addres For $ATHIFACE [$MAC]: " SPOOFMAC
+read -e -p "What SSID Do You Want To Use [WiFi]: " ESSID
+if [ "$ESSID" = "" ]; then ESSID=WiFi; fi
+read -e -p "What CHANNEL Do You Want To Use [1]: " CHAN
+if [ "$CHAN" = "" ]; then CHAN=1; fi
+read -e -p "Select your MTU setting [7981]: " MTU
+if [ "$MTU" = "" ]; then MTU=7981; fi
+if [ "$MODE" = "4" ]; then 
+read -e -p "Targets MAC Address: " TARGETMAC
+fi
+read -e -p "Beacon Intervals [50]: " BEAINT
+if [ "$BEAINT" = "" ]; then BEAINT=50; fi
+if [ "$BEAINT" -lt "10" ]; then BEAINT=50; fi
+read -e -p "Packets Per Second [100]: " PPS
+if [ "$PPS" = "" ]; then PPS=100; fi
+if [ "$PPS" -lt "100" ]; then PPS=100; fi
+read -e -p "Other AirBase-NG Options [none]: " OTHEROPTS
+read -e -p "DNS Spoof What Website [#]: " DNSURL
+if [ "$DNSURL" = "" ]; then DNSURL=\#; fi
+echo ""
 }
 # +===================================+
 # | ANYTHING UNDER THIS IS UNTESTED   |
@@ -841,76 +914,41 @@ echo "| [$OK] SCRIPT REVISION: $REVISION"
 if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection : - ("; fi
 if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
-type -P aircrack-ng &>/dev/null || { echo "| [FATAL] aircrack-ng"; echo "aircrack-ng" >> $folder/missing.log;
-if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then installaircrack; else exit 0; fi }
-type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $folder/missing.log;}
+type -P aircrack-ng &>/dev/null || { echo "| [FATAL] aircrack-ng"; echo "aircrack-ng" >> $sessionfolder/logs/missing.log;}
+type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $sessionfolder/logs/missing.log;}
 if [ "$mydistro" = "BackTrack" ]; then
-type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $folder/missing.log;}
+type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $sessionfolder/logs/missing.log;}
 fi
 if [ "$mydistro" != "BackTrack" ]; then
-type -P dhcpd &>/dev/null || { echo "| [$FAIL] dhcpd"; echo "dhcpd" >> $folder/missing.log;}
+type -P dhcpd &>/dev/null || { echo "| [$FAIL] dhcpd"; echo "dhcpd" >> $sessionfolder/logs/missing.log;}
 fi
-type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng"; echo "airdrop-ng" >> $folder/missing.log;}
-type -P xterm &>/dev/null || { echo "| [$FAIL] xterm"; echo "xterm" >> $folder/missing.log;}
-type -P iptables &>/dev/null || { echo "| [$FAIL] iptables"; echo "iptables" >> $folder/missing.log;}
-type -P ettercap &>/dev/null || { echo "| [$FAIL] ettercap"; echo "ettercap" >> $folder/missing.log;}
-type -P arpspoof &>/dev/null || { echo "| [$FAIL] arpspoof"; echo "arpspoof" >> $folder/missing.log;}
-type -P sslstrip &>/dev/null || { echo "| [$FAIL] sslstrip"; echo "sslstrip" >> $folder/missing.log;}
-type -P driftnet &>/dev/null || { echo "| [$FAIL] driftnet"; echo "driftnet" >> $folder/missing.log;}
-type -P urlsnarf &>/dev/null || { echo "| [$FAIL] urlsnarf"; echo "urlsnarf" >> $folder/missing.log;}
-type -P dsniff &>/dev/null || { echo "| [$FAIL] dsniff"; echo "dsniff" >> $folder/missing.log;}
-type -P python &>/dev/null || { echo "| [$FAIL] python"; echo "python" >> $folder/missing.log;}
-type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchanger" >> $folder/missing.log;}
-type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $folder/missing.log;}
+type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng"; echo "airdrop-ng" >> $sessionfolder/logs/missing.log;}
+type -P xterm &>/dev/null || { echo "| [$FAIL] xterm"; echo "xterm" >> $sessionfolder/logs/missing.log;}
+type -P iptables &>/dev/null || { echo "| [$FAIL] iptables"; echo "iptables" >> $sessionfolder/logs/missing.log;}
+type -P ettercap &>/dev/null || { echo "| [$FAIL] ettercap"; echo "ettercap" >> $sessionfolder/logs/missing.log;}
+type -P arpspoof &>/dev/null || { echo "| [$FAIL] arpspoof"; echo "arpspoof" >> $sessionfolder/logs/missing.log;}
+type -P sslstrip &>/dev/null || { echo "| [$FAIL] sslstrip"; echo "sslstrip" >> $sessionfolder/logs/missing.log;}
+type -P driftnet &>/dev/null || { echo "| [$FAIL] driftnet"; echo "driftnet" >> $sessionfolder/logs/missing.log;}
+type -P urlsnarf &>/dev/null || { echo "| [$FAIL] urlsnarf"; echo "urlsnarf" >> $sessionfolder/logs/missing.log;}
+type -P dsniff &>/dev/null || { echo "| [$FAIL] dsniff"; echo "dsniff" >> $sessionfolder/logs/missing.log;}
+type -P python &>/dev/null || { echo "| [$FAIL] python"; echo "python" >> $sessionfolder/logs/missing.log;}
+type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchanger" >> $sessionfolder/logs/missing.log;}
+type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $sessionfolder/logs/missing.log;}
 # apt-get install python-dev
 echo "+===================================+"
 echo ""
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
+if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then internetmenu; fi
 stopshit
 modprobe tun
 echo ""
 poisonmenu
 softapmenu
 if [ "$softap" = "0" ]; then TAPIFACE=at0; fi
-if [ "$softap" = "1" ]; then TAPIFACE=$ATHIFACE; fi
-echo "TAPIFACE $TAPIFACE"
+if [ "$softap" = "1" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
 if [ "$mode" != "2" ]; then dhcpmenu; fi
 monitormodestop
-if [ -f != $settings ]; then
-echo ""
-echo "+===================================+"
-echo "| Listing Wireless Devices          |"
-echo "+===================================+"
-airmon-ng | awk '/phy/ {print $1}'
-echo "+===================================+"
-echo ""
-echo "Pressing Enter Uses Default Settings"
-echo ""
-read -e -p "RF Moniter Interface [wlan0]: " ATHIFACE
-if [ "$ATHIFACE" = "" ]; then ATHIFACE=wlan0; fi
-ifconfig $ATHIFACE up
-MAC=$(ifconfig $ATHIFACE | awk '/HWaddr/ { print $5 }')
-read -e -p "Spoof MAC Addres For $ATHIFACE [$MAC]: " SPOOFMAC
-read -e -p "What SSID Do You Want To Use [WiFi]: " ESSID
-if [ "$ESSID" = "" ]; then ESSID=WiFi; fi
-read -e -p "What CHANNEL Do You Want To Use [1]: " CHAN
-if [ "$CHAN" = "" ]; then CHAN=1; fi
-read -e -p "Select your MTU setting [7981]: " MTU
-if [ "$MTU" = "" ]; then MTU=7981; fi
-if [ "$MODE" = "4" ]; then 
-read -e -p "Targets MAC Address: " TARGETMAC
-fi
-read -e -p "Beacon Intervals [50]: " BEAINT
-if [ "$BEAINT" = "" ]; then BEAINT=50; fi
-if [ "$BEAINT" -lt "10" ]; then BEAINT=50; fi
-read -e -p "Packets Per Second [100]: " PPS
-if [ "$PPS" = "" ]; then PPS=100; fi
-if [ "$PPS" -lt "100" ]; then PPS=100; fi
-read -e -p "Other AirBase-NG Options [none]: " OTHEROPTS
-read -e -p "DNS Spoof What Website [#]: " DNSURL
-if [ "$DNSURL" = "" ]; then DNSURL=\#; fi
-fi
-echo ""
+if [ -f != $settings ]; then settings; fi
 if [ "$mode" = "4" ]; then wepattackmenu; fi
 echo "* STARTING ACCESS POINT: $ESSID *"
 echo "* WIRELESS IFACE: $TAPIFACE *"
@@ -957,7 +995,8 @@ iptables -t nat -A POSTROUTING -o br-lan -j MASQUERADE
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver $GATEWAY" >> /etc/resolv.conf
 fi
-taillogs
+if [ "$softap" = "0" ]; then taillogsairbase; fi
+if [ "$softap" = "1" ]; then taillogshostapd; fi
 attackmenu
 if [ "$attack" = "1" ]; then deauth; fi
 if [ "$attack" = "2" ]; then wireshark -i $TAPIFACE -p -k -w $folder/$TAPIFACE.pcap; fi

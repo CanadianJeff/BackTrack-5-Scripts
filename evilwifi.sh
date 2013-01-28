@@ -332,14 +332,14 @@ ifconfig br-lan down
 brctl delbr br-lan
 }
 function apachesetup(){
-echo "ErrorDocument 404 /404.php" > /etc/apache2/conf.d/localized-error-pages
+APACHECONF=/etc/apache2/sites-available
+if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
+else cp $APACHECONF/default $APACHECONF/default~; fi
+sed -n "s/AllowOverride None/AllowOverride All/g" $APACHECONF/default
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
 ln -s /var/log/apache2/access.log $sessionfolder/logs/access.log
 ln -s /var/log/apache2/error.log $sessionfolder/logs/error.log
-APACHECONF=/etc/apache2/sites-available
-if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
-else cp $APACHECONF/default $APACHECONF/default~; fi
 }
 function apachecheck(){
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)

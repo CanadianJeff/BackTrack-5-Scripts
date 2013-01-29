@@ -278,7 +278,12 @@ gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -
 "dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
 }
 function dnsmasqconfig(){
-echo "address=/$DNSURL/$TAPIP" > /etc/dnsmasq.conf
+hostname=$(hostname)
+arpaaddr=$(echo $TAPIP|rev)
+echo "# auto-generated config file from evilwifi.sh" > /etc/dnsmasq.conf
+# echo "conf-file=/etc/dnsmasq.conf" >> /etc/dnsmasq.conf
+echo "address=/$DNSURL/$TAPIP" >> /etc/dnsmasq.conf
+# echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname.wirelesslan" >> /etc/dnsmasq.conf
 echo "dhcp-authoritative" >> /etc/dnsmasq.conf
 echo "dhcp-lease-max=102" >> /etc/dnsmasq.conf
 echo "domain-needed" >> /etc/dnsmasq.conf
@@ -287,16 +292,20 @@ echo "server=/wirelesslan/" >> /etc/dnsmasq.conf
 echo "localise-queries" >> /etc/dnsmasq.conf
 echo "log-queries" >> /etc/dnsmasq.conf
 echo "log-dhcp" >> /etc/dnsmasq.conf
+# echo "read-ethers" >> /etc/dnsmasq.conf
+# echo "bogus-priv" >> /etc/dnsmasq.conf
+# echo "expand-hosts" >> /etc/dnsmasq.conf
 echo "" >> /etc/dnsmasq.conf
 # echo "interface=$TAPIFACE" >> /etc/dnsmasq.conf
-echo "dhcp-leasefile=$folder/dnsmasq.leases" >> /etc/dnsmasq.conf
-echo "resolv-file=$folder/resolv.conf" >> /etc/dnsmasq.conf
+echo "dhcp-leasefile=$sessionfolder/dnsmasq.leases" >> /etc/dnsmasq.conf
+echo "resolv-file=$sessionfolder/resolv.conf.auto" >> /etc/dnsmasq.conf
 echo "stop-dns-rebind" >> /etc/dnsmasq.conf
 # echo "rebind-localhost-ok" >> /etc/dnsmasq.conf
-echo "dhcp-range=$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> /etc/dnsmasq.conf
+echo "dhcp-range=wirelesslan,$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> /etc/dnsmasq.conf
 echo "dhcp-option=wirelesslan,3,$TAPIP" >> /etc/dnsmasq.conf
+# echo "dhcp-option=wirelesslan,3,"
 echo "dhcp-host=$MAC,$TAPIP" >> /etc/dnsmasq.conf
-echo "nameserver $TAPIP" > $folder/resolv.conf
+echo "nameserver $TAPIP" > $sessionfolder/resolv.conf.auto
 if [ "$mode" = "1" ]; then startdnsmasq; fi
 if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
 }
@@ -332,14 +341,14 @@ ifconfig br-lan down
 brctl delbr br-lan
 }
 function apachesetup(){
-echo "ErrorDocument 404 /404.php" > /etc/apache2/conf.d/localized-error-pages
+APACHECONF=/etc/apache2/sites-available
+if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
+else cp $APACHECONF/default $APACHECONF/default~; fi
+sed -n "s/AllowOverride None/AllowOverride All/g" $APACHECONF/default
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
 ln -s /var/log/apache2/access.log $sessionfolder/logs/access.log
 ln -s /var/log/apache2/error.log $sessionfolder/logs/error.log
-APACHECONF=/etc/apache2/sites-available
-if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
-else cp $APACHECONF/default $APACHECONF/default~; fi
 }
 function apachecheck(){
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)

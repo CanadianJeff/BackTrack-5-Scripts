@@ -77,7 +77,7 @@ if [ -f $settings ]; then echo "[$OK] Config File Found!"; fi
 touch $LOG
 touch $sessionfolder/logs/missing.log
 touch $sessionfolder/config/hostapd.deny
-touch $sessionfolder/config/hostapd.allow
+touch $sessionfolder/config/hostapd.accept
 function control_c(){
 echo ""
 echo ""
@@ -114,7 +114,7 @@ function checkupdate(){
 echo "+===================================+"
 echo "| RUNNING SCRIPT UPDATE CHECK       |"
 echo "+===================================+"
-newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
+newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION | grep REVISION= | cut -d'=' -f2)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
 echo ""
@@ -160,7 +160,9 @@ cd /usr/src
 rm -rfv aircrack-ng*;
 svn co http://trac.aircrack-ng.org/svn/trunk/ aircrack-ng
 cd aircrack-ng
-make && make install
+make > $sessionfolder/logs/aircrack_make.log
+make install > $sessionfolder/logs/aircrack_make_install.log
+airodump-ng-oui-update
 cd $initpath
 }
 function uninstallhostapd(){
@@ -179,7 +181,8 @@ wget -nv -t 1 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2
 tar -xvf hostapd-1.0-karma.tar.bz2
 cd hostapd-1.0-karma
 cd hostapd
-make && make install
+make > $sessionfolder/logs/hostapd_make.log
+make install > $sessionfolder/logs/hostapd_make_install.log
 cd $initpath
 }
 function installlighttpd(){
@@ -451,8 +454,8 @@ iptables -A FORWARD -i $TAPIFACE -j ACCEPT
 #####################
 function starthostapd(){
 echo "* STARTING SERVICE: HOSTAPD *"
-hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $folder/hostapd.conf -B
-sleep 20
+hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $sessionfolder/config/hostapd.conf -B
+sleep 7
 }
 function startairbase(){
 echo "* STARTING SERVICE: AIRBASE-NG *"
@@ -463,13 +466,13 @@ echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
 echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C /etc/dnsmasq.conf"
+"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C $dnsmasqconf"
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,$TAPIP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "* DNSMASQ With Internet *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C /etc/dnsmasq.conf"
+"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C $dnsmasqconf"
 }
 function udhcpdserver(){
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
@@ -1155,4 +1158,3 @@ stopshit
 monitormodestop
 cleanup
 fi
-

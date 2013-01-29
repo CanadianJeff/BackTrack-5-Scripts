@@ -1,1 +1,35 @@
-REVISION=050
+######## ##     ## #### ##          ##      ## #### ######## #### 
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
+######   ##     ##  ##  ##          ##  ##  ##  ##  ######    ##  
+##        ##   ##   ##  ##          ##  ##  ##  ##  ##        ##  
+##         ## ##    ##  ##          ##  ##  ##  ##  ##        ##  
+########    ###    #### ########     ###  ###  #### ##       #### 
+
++-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
+|B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
++-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
+
+REVISION=051
+
+Q: What Is This Script?
+A: This BASH/SHELL Script Automates Prep Setup AND Running A Collection
+Of 802.11 (a,b,g,n) Wireless Network Based Attacks And A Whole Lot More Evil Goodness.
+
+Q: Can This Act As A Full HotSpot?
+A: The Script Can Also Aid In Setting Up HOSTAPD To Act As A Full Wireless HotSpot
+Right From You're Debian Based Linux Distro. (Ubuntu,Backtrack...)
+
+Q: Is My Wireless Card Supported?
+A: Not All Internal (Built In Cards) Work But There Are Good USB Wireless Adapters That Can Support
+Monitor Mode And Even Packet Injection Do Some Searching First
+
+Q: This Script Is Awesome!!!!
+A: We Are Always Looking For Help In Adding To This Script All The Time To Make It One Big Script
+That Everyone Wants To Have Installed On Their Laptops And Netbooks.
+
+Q: I Modified The Script Can I Have Support?
+A: I Encourage People To Test The Script And Report Bugs, Also Fork The Script So I Can Test And Add You're Changes
+
+Q: Where Else Can I Go For Support?
+A: Forums And Wiki Are Coming Soon!

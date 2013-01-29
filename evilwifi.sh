@@ -165,18 +165,20 @@ cd $initpath
 }
 function uninstallhostapd(){
 if [ -d "/usr/src/hostapd-1.0-karma" ]; then 
-cd /usr/src/hostapd-1.0-karma;
-make uninstall && make clean;
+cd /usr/src/hostapd-1.0-karma/hostapd;
+make clean;
+cd /usr/src
+rm -rfv hostapd*
 cd $initpath
 fi
 }
 function installhostapd(){
 uninstallhostapd
 cd /usr/src
-rm -rfv hostapd*
 wget -nv -t 1 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2
 tar -xvf hostapd-1.0-karma.tar.bz2
 cd hostapd-1.0-karma
+cd hostapd
 make && make install
 cd $initpath
 }

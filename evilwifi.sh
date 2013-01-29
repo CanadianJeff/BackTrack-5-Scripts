@@ -114,7 +114,7 @@ function checkupdate(){
 echo "+===================================+"
 echo "| RUNNING SCRIPT UPDATE CHECK       |"
 echo "+===================================+"
-newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION | grep REVISION= | cut -d'=' -f2)
+newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
 echo ""

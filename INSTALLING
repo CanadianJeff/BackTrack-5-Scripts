@@ -1,0 +1,39 @@
+REQUIREMENTS
+------------
+
+Linux Debian Based Distro ( Ubuntu, Backtrack* )
+Full Root/Super User Access ( id = 0 )
+Wireless Card That Supports ( Monitor Mode, Packet Injection, AP MODE )
+
+DEPENDS
+-------
+aircrack-ng ( Allows Monitor Mode )
+mdk3 ( Wifi Beacon Flood, Deauth Tool )
+dhcp server ( Hands Out IP Address To Victims )
+lighttpd ( Web Based Admin )
+wireshark ( Packet Capture )
+
+OPTIONAL
+--------
+apache2 http server
+mysql db server
+airdrop-ng ( Deauth Tool )
+ettercap ( Arp MITM )
+sslstrip ( SSL? )
+driftnet ( Capture Photos )
+urlsnarf ( Watch For URLS )
+arpspoof ( Arp MITM )
+dsniff
+python
+macchanger ( Spoof Mac Address )
+
+SUPPORTED WIFI CARDS
+----------------------
+( lsusb ) / ( lspci )
+----------------------
+
+Atheros Based Chipsets
+Alpha USB Cards
+Compat Wireless Drivers ( built from source )
+
+* Check Aircrack-NG Site For Full List *

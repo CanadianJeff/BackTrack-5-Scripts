@@ -20,6 +20,18 @@ Q: Can This Act As A Full HotSpot?
 A: The Script Can Also Aid In Setting Up HOSTAPD To Act As A Full Wireless HotSpot
 Right From You're Debian Based Linux Distro. (Ubuntu,Backtrack...)
 
+Q: OK So What Does This Script Actually Do?
+A: A Few Things.... 
+
+- Collects Information About Your Hardware
+- Reads Config File If You Have One
+- If Not Asks You Some Setup Questions
+- Checks For Packages / Depends
+- Checks For Script Update (Needs Internet)
+- Sets Up Config Files (DHCP Server / DNS Server / Apache Server / Wireless AP)
+- Starts Various Servers
+- Writes Logs And Settings To /home/.evilwifi/
+
 Q: Is My Wireless Card Supported?
 A: Not All Internal (Built In Cards) Work But There Are Good USB Wireless Adapters That Can Support
 Monitor Mode And Even Packet Injection Do Some Searching First

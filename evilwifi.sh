@@ -1118,7 +1118,7 @@ sleep 2
 if [ "$mode" != "2" ]; then
 ifconfig $TAPIFACE up
 ifconfig $TAPIFACE $TAPIP netmask $NETMASK;
-ifconfig $TAPIFACE mtu $MTU;
+if [ "$softap" = "0" ]; then ifconfig $TAPIFACE mtu $MTU; fi
 route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP; fi
 wireshark -i $TAPIFACE -k &
 if [ "$mode" = "2" ]; then DHCPSERVER=4; fi

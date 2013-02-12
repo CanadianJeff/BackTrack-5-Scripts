@@ -466,7 +466,7 @@ echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
 echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C $dnsmasqconf"
+"dnsmasq --no-daemon --interface=$TAPIFACE -C $dnsmasqconf"
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,$TAPIP,8.8.8.8" >> /etc/dnsmasq.conf

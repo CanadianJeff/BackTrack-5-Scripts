@@ -21,7 +21,7 @@ DHCPL=1h                   #time for dhcp lease
 #  OTHER SETTINGS  #
 ####################
 termwidth=130
-folder=~/.evilwifi
+folder=~/tmp/.evilwifi
 settings=evilwifi.conf
 karma_enabled=1
 dnsmasqconf=/etc/dnsmasq.conf

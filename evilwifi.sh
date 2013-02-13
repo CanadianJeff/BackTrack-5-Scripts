@@ -21,7 +21,7 @@ DHCPL=1h                   #time for dhcp lease
 #  OTHER SETTINGS  #
 ####################
 termwidth=130
-folder=~/tmp/.evilwifi
+folder=/tmp/.evilwifi
 settings=evilwifi.conf
 karma_enabled=1
 dnsmasqconf=/etc/dnsmasq.conf
@@ -237,7 +237,7 @@ kill `cat /var/run/dhcpd/$TAPIFACE.pid 2>$LOG` &>/dev/null;
 fi
 killall -9 airodump-ng aireplay-ng mdk3 driftnet urlsnarf dsniff &>/dev/null
 firewallreset
-if [ "$ATHIFACE" != "" ]; then ifconfig $ATHIFACE down; fi
+#if [ "$ATHIFACE" != "" ]; then ifconfig $ATHIFACE down; fi
 if [ "$TAPIFACE" != "" ]; then ifconfig $TAPIFACE down; fi
 }
 function cleanup(){

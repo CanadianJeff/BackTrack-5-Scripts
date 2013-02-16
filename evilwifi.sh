@@ -14,7 +14,7 @@ WILDCARD=0.0.255.255       #dunno what this is
 TAPIPBLOCK=10.0.0.0        #subnet
 DHCPS=10.0.0.1             #dhcp start range
 DHCPE=10.0.255.254         #dhcp end range
-BROADCAST=10.0.255.254     #broadcast address
+BROADCAST=10.0.255.255     #broadcast address
 # Hosts/Net 65534          #CLASS C, Private Internet
 DHCPL=1h                   #time for dhcp lease
 ####################
@@ -1059,7 +1059,7 @@ else
 echo "[$FAIL] Please Run This Script As Root or With Sudo!";
 echo "";
 exit 0; fi
-if [ -f $settings ]; then echo "[$OK] Config File Found!"; fi
+if [ -f $settings ]; then echo "| [$OK] Config File Found!"; fi
 if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
 echo "| [$OK] SCRIPT REVISION: $REVISION"

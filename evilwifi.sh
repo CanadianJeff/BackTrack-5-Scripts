@@ -446,18 +446,18 @@ function firewalltesting(){
 ####################
 iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
 iptables -A INPUT -i $TAPIFACE -j logaccept
-iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
+# iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
 iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
-iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
+# iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
 iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
 iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A INPUT -j logdrop
-iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
+# iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
 iptables -A FORWARD -i $TAPIFACE -j logaccept
 iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
 iptables -A FORWARD -j victim2wan
 iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
-iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
+# iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
 iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
 iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A FORWARD -j logdrop

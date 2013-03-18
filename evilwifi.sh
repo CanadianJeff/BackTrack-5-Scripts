@@ -443,7 +443,7 @@ echo "####################"
 iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
 iptables -A INPUT -i $TAPIFACE -j logaccept
 # iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
-iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
+iptables -A INPUT -p tcp -d $NETWORK --dport 22 -j logaccept
 # iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
 iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
 iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
@@ -454,7 +454,7 @@ iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
 iptables -A FORWARD -j victim2wan
 iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
 # iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
-iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
+iptables -A FORWARD -o $TAPIFACE -d $NETWORK -j logaccept
 iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A FORWARD -j logdrop
 iptables -A OUTPUT -o $TAPIFACE -j logaccept
@@ -508,13 +508,13 @@ hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pi
 sleep 7
 }
 function startairbase(){
-if [ "karma_enabled" != "1" ]; then KARMA=`-e "$ESSID"`;
+if [ "karma_enabled" != "1" ]; then KARMA=`-e '$ESSID'`;
 echo "* STARTING SERVICE: AIRBASE-NG (WITH KARMA) *"; else echo "* STARTING SERVICE: AIRBASE-NG *"; fi
 airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $KARMA $OTHEROPTS $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 }
 function startdnsmasq(){
-echo "no-poll" >> /etc/dnsmasq.conf
-echo "no-resolv" >> /etc/dnsmasq.conf
+echo "no-poll" >> $dnsmasqconf
+echo "no-resolv" >> $dnsmasqconf
 echo "* DNSMASQ DNS POISON!!! *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon -C $dnsmasqconf"

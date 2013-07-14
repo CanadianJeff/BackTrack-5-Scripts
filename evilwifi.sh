@@ -33,10 +33,11 @@ REVISION=052
 #############################
 #    UNCOMMENT TO ENABLE    #
 #############################
-#function customfirewall(){
+function customfirewall(){
+echo "Loading Custom Firewall Rules"
 #iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 #iptables -t nat -A YOURRULEHERE
-#}
+}
 function banner(){
 echo "
 ######## ##     ## #### ##          ##      ## #### ######## #### 
@@ -442,6 +443,7 @@ iptables -N logaccept
 iptables -N logdrop
 iptables -N logbrute
 iptables -N logreject
+iptables -N forward
 iptables -N forwarding_lan
 iptables -N forwarding_rule
 iptables -N forwarding_wan
@@ -453,6 +455,7 @@ iptables -N nat_reflection_fwd
 iptables -N output
 iptables -N output_rule
 iptables -N syn_flood
+iptables -N reject
 iptables -N zone_lan
 iptables -N zone_lan_ACCEPT
 iptables -N zone_lan_DROP
@@ -573,18 +576,18 @@ iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j intern
 iptables -t mangle -A internet -j MARK --set-mark 99
 iptables -t mangle -A FORWARD -j zone_wan_MSSFIX
 iptables -t mangle -A zone_wan_MSSFIX -o $WANIFACE -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
+iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to $TAPIP
 listeningports
 for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do 
-iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
-iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j SNAT --to-destination $TAPIP; done
-iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
-iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j ACCEPT
+#iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT;
+iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j SNAT --to $TAPIP;
+#iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT;
+iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j ACCEPT; done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
-iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j SNAT --to-destination $TAPIP; done
-iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
-iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j ACCEPT
+#iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT;
+iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j SNAT --to $TAPIP;
+#iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT;
+iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j ACCEPT; done
 iptables -t nat -A postrouting_rule -j nat_reflection_out
 iptables -t nat -A prerouting_rule -j nat_reflection_in
 iptables -t nat -A zone_lan_prerouting -j prerouting_lan

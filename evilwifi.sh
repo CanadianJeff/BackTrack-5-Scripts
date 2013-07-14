@@ -57,32 +57,32 @@ FAIL=`printf "\e[1;31mFAIL\e[0m"`
 initpath=`pwd`
 hostname=$(hostname)
 arpaaddr=$(echo $TAPIP|rev)
-[ -f = $lockfile ] || { echo "$lockfile Detected - Script Halted!"; exit 1; }
-[ ! -d = $folder ] || mkdir $folder;
+#[ -f = $lockfile ] || { echo "$lockfile Detected - Script Halted!"; exit 1; }
+rm -rf $folder && mkdir $folder;
 sessionfolder=$folder/SESSION_$RANDOM
-[ ! -d = $sessionfolder ] || mkdir $sessionfolder;
-mkdir $sessionfolder/logs
-mkdir $sessionfolder/pids
-mkdir $sessionfolder/pcaps
-mkdir $sessionfolder/config
+mkdir $sessionfolder;
+mkdir $sessionfolder/logs;
+mkdir $sessionfolder/pids;
+mkdir $sessionfolder/pcaps;
+mkdir $sessionfolder/config;
 LOG=$sessionfolder/logs/evilwifi.log
-touch $LOG
-touch $sessionfolder/logs/missing.log
-touch $sessionfolder/config/hostapd.deny
-touch $sessionfolder/config/hostapd.accept
+touch $LOG;
+touch $sessionfolder/logs/missing.log;
+touch $sessionfolder/config/hostapd.deny;
+touch $sessionfolder/config/hostapd.accept;
 touch $lockfile
 function killscript(){
 stopshit
 monitormodestop
 cleanup
-exit 0
+exit 0;
 }
-trap killscript INT HUP EXIT
+trap killscript INT HUP EXIT;
 ####################
 # INTERNET TESTING #
 ####################
 function icmptest(){
-
+echo
 }
 function pinginternet(){
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
@@ -442,38 +442,79 @@ iptables -N logaccept
 iptables -N logdrop
 iptables -N logbrute
 iptables -N logreject
-iptables -N victim2wan
-iptables -N victim2lan
-iptables -P FORWARD ACCEPT
-iptables -P INPUT ACCEPT
-iptables -A INPUT -i lo -j ACCEPT
+iptables -N forwarding_lan
+iptables -N forwarding_rule
+iptables -N forwarding_wan
+iptables -N input
+iptables -N input_lan
+iptables -N input_rule
+iptables -N input_wan
+iptables -N nat_reflection_fwd
+iptables -N output
+iptables -N output_rule
+iptables -N syn_flood
+iptables -N zone_lan
+iptables -N zone_lan_ACCEPT
+iptables -N zone_lan_DROP
+iptables -N zone_lan_REJECT
+iptables -N zone_lan_forward
+iptables -N zone_wan
+iptables -N zone_wan_ACCEPT
+iptables -N zone_wan_DROP
+iptables -N zone_wan_REJECT
+iptables -N zone_wan_forward
+iptables -t mangle -N zone_wan_MSSFIX
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function firewallprenat(){
 echo "####################"
 echo "# PRE NAT FIREWALL #"
 echo "####################"
-iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
-iptables -A INPUT -i $TAPIFACE -j logaccept
+iptables -P INPUT ACCEPT
+iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j syn_flood
+iptables -A INPUT -j input_rule
+iptables -A INPUT -j input
 # iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
 iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
 # iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
-iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
+# iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
 iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A INPUT -j logdrop
+iptables -P FORWARD ACCEPT
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 
+iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP 
+iptables -A FORWARD -j forwarding_rule 
+iptables -A FORWARD -j forward 
 # iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
 iptables -A FORWARD -i $TAPIFACE -j logaccept
 iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
-iptables -A FORWARD -j victim2wan
-iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
+# iptables -A FORWARD -j victim2wan
 # iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
 iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
 iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A FORWARD -j logdrop
+iptables -A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A OUTPUT -o $TAPIFACE -j logaccept
+iptables -A OUTPUT -j output_rule
+iptables -A OUTPUT -j output
 iptables -A logaccept -j ACCEPT
 iptables -A logbrute -j logdrop
 iptables -A logdrop -j DROP
+iptables -A output -j zone_lan_ACCEPT 
+iptables -A output -j zone_wan_ACCEPT 
+iptables -A reject -p tcp -j REJECT --reject-with tcp-reset 
+iptables -A reject -j REJECT --reject-with icmp-port-unreachable 
+iptables -A syn_flood -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 25/sec --limit-burst 50 -j RETURN 
+iptables -A syn_flood -j DROP
+iptables -A zone_lan -j input_lan 
+iptables -A zone_lan -j zone_lan_ACCEPT
+iptables -A zone_lan_forward -j forwarding_lan 
+iptables -A zone_lan_forward -j zone_lan_ACCEPT 
 # iptables -A logreject -p tcp --reject-with tcp-reset -j REJECT
 echo "# PRE NAT COMPLETE #"
 echo "####################"
@@ -482,22 +523,72 @@ echo "####################"
 # NETWORK ADDRESS TRANSLATION #
 ###############################
 function firewallbrlan(){
-iptables -t nat -A POSTROUTING -o $WANIFACE -s $NETWORK -j SNAT --to-destination $WANIP
-iptables -t nat -A POSTROUTING -o br-lan -j MASQUERADE
+iptables -A forward -i br-lan -j zone_lan_forward
+iptables -A forward -i $WANIFACE -j zone_wan_forward
+iptables -A forwarding_rule -j nat_reflection_fwd
+iptables -A input -i br-lan -j zone_lan
+iptables -A input -i $WANIFACE -j zone_wan
+iptables -A zone_lan_ACCEPT -o br-lan -j ACCEPT
+iptables -A zone_lan_ACCEPT -i br-lan -j ACCEPT
+iptables -A zone_lan_DROP -o br-lan -j DROP
+iptables -A zone_lan_DROP -i br-lan -j DROP
+iptables -A zone_lan_REJECT -o br-lan -j reject
+iptables -A zone_lan_REJECT -i br-lan -j reject
+iptables -t nat -A PREROUTING -i br-lan -j zone_lan_prerouting
+iptables -t nat -A PREROUTING -i $WANIFACE -j zone_wan_prerouting
+iptables -t nat -A POSTROUTING -o br-lan -j zone_lan_nat
+iptables -t nat -A POSTROUTING -o $WANIFACE -j zone_wan_nat
+iptables -A zone_wan -p udp -m udp --dport 68 -j ACCEPT
+iptables -A zone_wan -p icmp -j ACCEPT
+iptables -A zone_wan -j input_wan
+iptables -A zone_wan -j zone_wan_ACCEPT
+iptables -A zone_wan_ACCEPT -o $WANIFACE -j ACCEPT
+iptables -A zone_wan_ACCEPT -i $WANIFACE -j ACCEPT
+iptables -A zone_wan_DROP -o $WANIFACE -j DROP
+iptables -A zone_wan_DROP -i $WANIFACE -j DROP
+iptables -A zone_wan_REJECT -o $WANIFACE -j reject
+iptables -A zone_wan_REJECT -i $WANIFACE -j reject
+iptables -A zone_wan_forward -j zone_lan_ACCEPT
+iptables -A zone_wan_forward -j forwarding_wan
+iptables -A zone_wan_forward -j zone_wan_ACCEPT
 }
 function firewallnat(){
 echo "######################"
 echo "# NAT TABLES INSTALL #"
 echo "######################"
+iptables -t nat -N nat_reflection_in
+iptables -t nat -N nat_reflection_out
+iptables -t nat -N postrouting_rule
+iptables -t nat -N prerouting_lan
+iptables -t nat -N prerouting_rule
+iptables -t nat -N prerouting_wan
+iptables -t nat -N zone_lan_nat
+iptables -t nat -N zone_lan_prerouting
+iptables -t nat -N zone_wan_nat
+iptables -t nat -N zone_wan_prerouting
+iptables -t nat -A PREROUTING -j prerouting_rule
+iptables -t nat -A POSTROUTING -j postrouting_rule
 iptables -t mangle -N internet
 iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
 iptables -t mangle -A internet -j MARK --set-mark 99
+iptables -t mangle -A FORWARD -j zone_wan_MSSFIX
+iptables -t mangle -A zone_wan_MSSFIX -o $WANIFACE -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to-destination $TAPIP
 listeningports
 for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do 
-iptables -t nat -A PREROUTING $TAPIFACE -p tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
-for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do 
-iptables -t nat -A PREROUTING $TAPIFACE -p udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
+iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
+iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j SNAT --to-destination $TAPIP; done
+iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT; done
+iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j ACCEPT
+for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
+iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
+iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j SNAT --to-destination $TAPIP; done
+iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT; done
+iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j ACCEPT
+iptables -t nat -A postrouting_rule -j nat_reflection_out
+iptables -t nat -A prerouting_rule -j nat_reflection_in
+iptables -t nat -A zone_lan_prerouting -j prerouting_lan
+iptables -t nat -A zone_wan_nat -j MASQUERADE
 iptables -t nat -A POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERADE
 echo "####################"
 echo "# DONE WITH NAT FW #"
@@ -649,7 +740,6 @@ ifconfig br-lan down
 brctl delbr br-lan
 }
 function monitormodestop(){
-echo ""
 echo "* ATTEMPTING TO STOP MONITOR-MODE *"
 if [ "$ATHIFACE" = "" ]; then 
 ATHIFACE=`ifconfig wlan | awk '/encap/ {print $1}'`
@@ -1192,22 +1282,21 @@ if [ "$DHCPSERVER" = "1" ]; then dnsmasqconfig; fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3config; fi
 if [ "$DHCPSERVER" = "3" ]; then udhcpdconfig; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
+firewall
+firewallprenat
 if [ "$mode" = "1" ]; then
 apachesetup
 apachecheck
-firewall
-firewallprenat
 #echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 #echo "nameserver 127.0.0.1" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then
-firewall
 brlan
 firewallbrlan
-firewallnat
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 fi
+firewallnat
 if [ "$softap" = "0" ]; then taillogsairbase; fi
 if [ "$softap" = "1" ]; then taillogshostapd; fi
 attackmenu

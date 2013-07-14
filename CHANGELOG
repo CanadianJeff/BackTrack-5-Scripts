@@ -16,3 +16,9 @@ organized script into sections
 added faq to README
 added options to update depends
 
+REV 52:
+fixed broken links
+huge code cleanup
+script will now generate a .conf file
+added lockfile to prevent script from running twice
+

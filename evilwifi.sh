@@ -244,6 +244,7 @@ if [ "$TAPIFACE" != "" ]; then ifconfig $TAPIFACE down; fi
 function cleanup(){
 dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
+echo > $dnsmasqconf
 mv $APACHECONF/default~ $APACHECONF/default
 }
 ###################
@@ -261,6 +262,9 @@ echo "Pressing Enter Uses Default Settings"
 echo ""
 read -e -p "RF Moniter Interface [wlan0]: " ATHIFACE
 if [ "$ATHIFACE" = "" ]; then ATHIFACE=wlan0; fi
+ifconfig $ATHIFACE down
+sleep 2
+iwconfig $ATHIFACE mode managed
 ifconfig $ATHIFACE up
 MAC=$(ifconfig $ATHIFACE | awk '/HWaddr/ { print $5 }')
 read -e -p "Spoof MAC Addres For $ATHIFACE [$MAC]: " SPOOFMAC
@@ -433,7 +437,7 @@ iptables -N victim2wan
 iptables -N victim2lan
 iptables -P FORWARD ACCEPT
 iptables -P INPUT ACCEPT
-iptables -A INPUT -i lo -j logaccept
+iptables -A INPUT -i lo -j ACCEPT
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function firewallprenat(){
@@ -443,7 +447,7 @@ echo "####################"
 iptables -A INPUT -m state --state RELATED,ESTABLISHED -j logaccept
 iptables -A INPUT -i $TAPIFACE -j logaccept
 # iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
-iptables -A INPUT -p tcp -d $NETWORK --dport 22 -j logaccept
+iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
 # iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
 iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
 iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
@@ -454,7 +458,7 @@ iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
 iptables -A FORWARD -j victim2wan
 iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
 # iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
-iptables -A FORWARD -o $TAPIFACE -d $NETWORK -j logaccept
+iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
 iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
 iptables -A FORWARD -j logdrop
 iptables -A OUTPUT -o $TAPIFACE -j logaccept
@@ -498,6 +502,9 @@ iptables -t nat -A POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERAD
 echo "####################"
 echo "# DONE WITH NAT FW #"
 echo "####################"
+
+customfirewall
+
 }
 #####################
 # STARTING SERVICES #
@@ -508,7 +515,7 @@ hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pi
 sleep 7
 }
 function startairbase(){
-if [ "karma_enabled" != "1" ]; then KARMA=`-e '$ESSID'`;
+if [ "karma_enabled" != "1" ]; then KARMA=`-e \"$ESSID\"`;
 echo "* STARTING SERVICE: AIRBASE-NG (WITH KARMA) *"; else echo "* STARTING SERVICE: AIRBASE-NG *"; fi
 airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $KARMA $OTHEROPTS $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 }

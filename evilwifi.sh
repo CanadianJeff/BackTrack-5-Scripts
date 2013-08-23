@@ -485,6 +485,7 @@ iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
 # iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
 # iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
 iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
+iptables -A INPUT -i eth0 -m state --state NEW -j logaccept
 iptables -A INPUT -j logdrop
 iptables -P FORWARD ACCEPT
 iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 
@@ -505,8 +506,11 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A OUTPUT -o $TAPIFACE -j logaccept
 iptables -A OUTPUT -j output_rule
 iptables -A OUTPUT -j output
+iptables -A logaccept -m limit --limit 2/m -j LOG --log-prefix "LOGACCEPT: "
 iptables -A logaccept -j ACCEPT
-iptables -A logbrute -j logdrop
+iptables -A logbrute -m limit --limit 5/m -j LOG --log-prefix "LOGBRUTE: "
+iptables -A logbrute -j DROP
+iptables -A logdrop -m limit --limit 5/m -j LOG --log-prefix "LOGDROP: "
 iptables -A logdrop -j DROP
 iptables -A output -j zone_lan_ACCEPT 
 iptables -A output -j zone_wan_ACCEPT 

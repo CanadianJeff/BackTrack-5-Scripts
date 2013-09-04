@@ -22,3 +22,8 @@ huge code cleanup
 script will now generate a .conf file
 added lockfile to prevent script from running twice
 
+REV 53: (Sep 4 2013)
+DONE: fixed broken links
+DONE: added full debug support
+DONE: overhauled firewall script to mimic iptables that OpenWRT uses
+TODO: finish and cleanup dependency check

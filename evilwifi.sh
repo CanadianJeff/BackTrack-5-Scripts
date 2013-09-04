@@ -46,7 +46,7 @@ echo "
 function setupenv(){
 datestamp=$(date +%F_%I-%M-%S-%p)
 echo "| [ >> ] SETTING UP!";
-REVISION=052
+REVISION=053
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
@@ -81,13 +81,10 @@ TERM="xfce4-terminal --hide-menubar ";
 fi
 if [ "$COLORTERM" = "gnome-terminal" ]; then
 TERM="gnome-terminal --hide-menubar ";
-
-
+fi
+if [ "$COLORTERM" = "xterm" ]; then
 TERM="xterm +aw +bc +fullscreen -bg black -fg green ";
-
-
-
-
+fi
 echo "| [$OK] $datestamp";
 }
 function debugenv(){
@@ -160,7 +157,6 @@ echo "[$OK] DONE -> $datestamp";
 function killscript(){
 echo "Detected CTRL+C..."
 stopshit
-brlandown
 monitormodestop
 cleanup
 exit 0;
@@ -331,6 +327,7 @@ pgrep $program > $sessionfolder/pids/$program.pid;
 done
 }
 function stopshit(){
+if [ "$BRLAN" = "up" ]; then brlandown; fi
 pspids;
 service lighttpd stop &>>$LOG;
 service apache2 stop &>>$LOG;
@@ -941,6 +938,7 @@ echo "* ATTEMPTING TO BRIDGE ON $TAPIFACE (br-lan) *"
 brctl addif $BRLANIFACE $TAPIFACE
 ifconfig $BRLANIFACE $TAPIP netmask $NETMASK up;
 route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP;
+BRLAN=up
 }
 function brlan_addwan(){
 dhclient -4 -d $WANIFACE &>$sessionfolder/logs/bridge.log
@@ -956,6 +954,7 @@ function brlandown(){
 ifconfig $BRLANIFACE down
 brctl delif $BRLANIFACE $TAPIFACE
 brctl delbr $BRLANIFACE
+BRLAN=down
 }
 function monitormodestop(){
 echo "* ATTEMPTING TO STOP MONITOR-MODE *"

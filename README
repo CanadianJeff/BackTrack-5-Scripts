@@ -10,15 +10,25 @@
 |B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 
-REVISION=051
+REVISION=053
 
 Q: What Is This Script?
 A: This BASH/SHELL Script Automates Prep Setup AND Running A Collection
 Of 802.11 (a,b,g,n) Wireless Network Based Attacks And A Whole Lot More Evil Goodness.
 
 Q: Can This Act As A Full HotSpot?
-A: The Script Can Also Aid In Setting Up HOSTAPD To Act As A Full Wireless HotSpot
-Right From You're Debian Based Linux Distro. (Ubuntu,Backtrack...)
+A: The Script Can Setup HOSTAPD To Act As A Full Wireless HotSpot
+
+Q: What Linux Distro Does This Work Best On?
+A: Supported Distros Are....
+
+- Kali Linux ( www.kali.org )
+- Backtrack Linux ( www.backtrack.org )
+- Ubuntu Linux ( www.ubuntu.org )
+- Xubuntu Linux ( www.xubuntu.org )
+
+Q: What Depency Do I Need To Build (hostapd and aircrack-ng)?
+A: libssl-dev libnl-dev
 
 Q: OK So What Does This Script Actually Do?
 A: A Few Things.... 
@@ -30,7 +40,7 @@ A: A Few Things....
 - Checks For Script Update (Needs Internet)
 - Sets Up Config Files (DHCP Server / DNS Server / Apache Server / Wireless AP)
 - Starts Various Servers
-- Writes Logs And Settings To /home/.evilwifi/
+- Writes Logs And Settings To /tmp/.evilwifi/
 
 Q: Is My Wireless Card Supported?
 A: Not All Internal (Built In Cards) Work But There Are Good USB Wireless Adapters That Can Support
@@ -45,4 +55,3 @@ A: I Encourage People To Test The Script And Report Bugs, Also Fork The Script S
 
 Q: Where Else Can I Go For Support?
 A: Forums And Wiki Are Coming Soon!
-

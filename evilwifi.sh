@@ -84,11 +84,11 @@ touch $lockfile;
 }
 function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
-xfce4-terminal --hide-menubar --title $TERMTITLE -e "$(echo $TERMCMD)"; fi
+xfce4-terminal --hide-menubar --title \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "gnome-terminal" ]; then
-gnome-terminal --hide-menubar --title $TERMTITLE -e "$(echo $TERMCMD)"; fi
+gnome-terminal --hide-menubar --title \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "xterm" ]; then
-xterm +aw +bc +fullscreen -bg black -fg green -T $TERMTITLE -e "$(echo $TERMCMD)"; fi
+xterm +aw +bc +fullscreen -bg black -fg green -T \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
 unset TERMGEO
 unset TERMTITLE
 unset TERMCMD
@@ -329,9 +329,12 @@ done
 function stopshit(){
 if [ "$BRLAN" = "up" ]; then brlandown; fi
 pspids;
+echo "Stopping Conflicting Services...";
 service lighttpd stop &>>$LOG;
 service apache2 stop &>>$LOG;
 service dhcp3-server stop &>>$LOG;
+service network-manager stop &>>$LOG;
+echo "DONE"
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2;
 pspids;
@@ -370,6 +373,7 @@ echo "nameserver 8.8.8.8" > /etc/resolv.conf
 function cleanup(){
 echo > $dhcpconf
 rm -rf $lockfile
+service network-manager start
 # mv $APACHECONF/default~ $APACHECONF/default
 }
 ###################

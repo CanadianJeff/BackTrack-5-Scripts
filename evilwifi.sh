@@ -84,11 +84,11 @@ touch $lockfile;
 }
 function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
-xfce4-terminal --hide-menubar --title \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
+xfce4-terminal --hide-menubar --title "$(echo $TERMTITLE)" -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "gnome-terminal" ]; then
-gnome-terminal --hide-menubar --title \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
+gnome-terminal --hide-menubar --title "$(echo $TERMTITLE)" -e "$(echo $TERMCMD)"; fi
 if [ "$COLORTERM" = "xterm" ]; then
-xterm +aw +bc +fullscreen -bg black -fg green -T \'$TERMTITLE\' -e "$(echo $TERMCMD)"; fi
+xterm +aw +bc +fullscreen -bg black -fg green -T "$(echo $TERMTITLE)" -e "$(echo $TERMCMD)"; fi
 unset TERMGEO
 unset TERMTITLE
 unset TERMCMD
@@ -940,11 +940,11 @@ echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 #echo "cur_time=$(awk '// {print $4}' < <(date))" >> $folder/probe.sh
-echo "awk '/Probe/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", strftime(\"%H:%M:%S\"), \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
+echo "awk '/Probe/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", datestr, \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
-echo "awk '/AP-STA-CONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H:%M:%S\"), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "awk '/AP-STA-CONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
-echo "awk '/AP-STA-DISCONNECTED/ {printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", strftime(\"%H:%M:%S\"), \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "awk '/AP-STA-DISCONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
@@ -954,7 +954,7 @@ chmod a+x $folder/web.sh
 TERMTITLE="HTTP SERVER"
 TERMCMD="/bin/bash $folder/web.sh"
 STARTTERM
-TERMTITLE="PROBE"
+TERMTITLE="PROBE REQUESTS"
 TERMCMD="/bin/bash $folder/probe.sh"
 STARTTERM
 TERMTITLE="PWNED"
@@ -983,7 +983,7 @@ chmod a+x $folder/web.sh
 TERMTITLE="HTTP SERVER"
 TERMCMD="/bin/bash $folder/web.sh"
 STARTTERM
-TERMTITLE="PROBE"
+TERMTITLE="PROBE REQUESTS"
 TERMCMD="/bin/bash $folder/probe.sh"
 STARTTERM
 TERMTITLE="PWNED"
@@ -1506,7 +1506,7 @@ if [ "$internetmenu" = "2" ]; then installdeps; fi
 if [ "$internetmenu" = "3" ]; then forceupdate; fi
 if [ "$internetmenu" = "4" ]; then runscript; fi
 stopshit
-responder
+# responder
 echo ""
 poisonmenu
 if [ -f != $settings ]; then softapmenu; fi

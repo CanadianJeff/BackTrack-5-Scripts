@@ -11,15 +11,16 @@ TAPIPBLOCK=10.0.0.0        #subnet
 DHCPS=10.0.0.1             #dhcp start range
 DHCPE=10.0.255.254         #dhcp end range
 BROADCAST=10.0.255.255     #broadcast address
-# Hosts/Net 65534          #CLASS C, Private Internet
+# Hosts/Net 65534          #CLASS A, Private Internet
 DHCPL=1h                   #time for dhcp lease
-########################################
-### IF YOU TOUCH ANYTHING UNDER THIS ###
-### NO SUPPORT WILL BE GIVEN TO YOU  ###
-########################################
-###      YOU HAVE BEEN WARNED!!!     ###
-###                                  ###
-########################################
+#ipcalc_tmp=
+#ADDRESS=$(cat $ipcalc_tmp | grep Address | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+#NETMASK=$(cat $ipcalc_tmp | grep Netmask | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+#WILDCARD=$(cat $ipcalc_tmp | grep WildCard | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+#NETWORK=
+#HOSTMIN=$(cat $ipcalc_tmp | grep HostMin | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+#HOSTMAX=$(cat $ipcalc_tmp | grep HostMax | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+#BROADCAST=$(cat $ipcalc_tmp | grep Broadcast | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
 function banner(){
 echo "
 ######## ##     ## #### ##          ##      ## #### ######## ####
@@ -78,6 +79,7 @@ mkdir $sessionfolder/config;
 LOG=$sessionfolder/logs/evilwifi.log;
 touch $sessionfolder/logs/evilwifi.log;
 touch $sessionfolder/logs/missing.log;
+touch $sessionfolder/logs/ipcalc.log
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
 touch $lockfile;
@@ -249,10 +251,12 @@ if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
 critarray=( aircrack-ng iptables dnsmasq dhcpd3 dhcpd xterm python macchanger wget perl brctl )
 for depend in ${critarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+crit_error=1
 done
-warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn )
+warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+warn_error=1
 done
 }
 function uninstalldeps(){
@@ -333,7 +337,7 @@ echo "Stopping Conflicting Services...";
 service lighttpd stop &>>$LOG;
 service apache2 stop &>>$LOG;
 service dhcp3-server stop &>>$LOG;
-service network-manager stop &>>$LOG;
+# service network-manager stop &>>$LOG;
 echo "DONE"
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2;
@@ -373,7 +377,7 @@ echo "nameserver 8.8.8.8" > /etc/resolv.conf
 function cleanup(){
 echo > $dhcpconf
 rm -rf $lockfile
-service network-manager start
+# service network-manager restart
 # mv $APACHECONF/default~ $APACHECONF/default
 }
 ###################
@@ -383,9 +387,10 @@ function settings(){
 if [ -f $settings ]; then echo "| [$OK] Config File Found!"; fi
 echo ""
 echo "+===================================+"
-echo "| Listing Wireless Devices          |"
+echo "| Listing Network Devices           |"
 echo "+===================================+"
-airmon-ng | awk '/phy/ {print $1}'
+# airmon-ng | awk '/phy/ {print $1}'
+ifconfig | awk '/Link encap:Eth/ {print;getline;print}' | sed '{ N; s/\n/ /; s/Link en.*.HWaddr//g; s/ Bcast.*//g; s/UP.*.:1//g; s/inet addr/IP/g; }' | sed '$a\\n'
 echo "+===================================+"
 echo ""
 echo "Pressing Enter Uses Default Settings"

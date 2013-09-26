@@ -23,8 +23,8 @@ Q: What Linux Distro Does This Work Best On?
 A: Supported Distros Are....
 
 - Kali Linux ( www.kali.org )
-- Backtrack Linux ( www.backtrack.org )
-- Ubuntu Linux ( www.ubuntu.org )
+- Backtrack Linux ( www.backtrack-linux.org )
+- Ubuntu Linux ( www.ubuntu.com )
 - Xubuntu Linux ( www.xubuntu.org )
 
 Q: What Depency Do I Need To Build (hostapd and aircrack-ng)?

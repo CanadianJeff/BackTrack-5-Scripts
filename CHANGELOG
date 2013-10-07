@@ -1,29 +1,25 @@
-REV 48:
-fixed bridge mode
-tons of code cleanup
-
-REV 49:
-banner added
-better update check
 
 REV 50:
-getting ready to add .conf file
-added battery level check
+TODO: getting ready to add .conf file
+TODO: battery level check
 
 REV 51:
-added hostapd support
-organized script into sections
-added faq to README
-added options to update depends
+DONE: added hostapd support
+DONE: organized script into sections
+DONE: added faq to README
+DONE: added option to update depends
 
 REV 52:
-fixed broken links
-huge code cleanup
-script will now generate a .conf file
-added lockfile to prevent script from running twice
+DONE: fixed broken links
+DONE: script will now generate a .conf file
+TODO: lockfile to prevent script from running twice
 
 REV 53: (Sep 4 2013)
 DONE: fixed broken links
 DONE: added full debug support
 DONE: overhauled firewall script to mimic iptables that OpenWRT uses
 TODO: finish and cleanup dependency check
+
+REV 54:
+
+REV 55: (Oct 7 2013)

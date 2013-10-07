@@ -35,14 +35,7 @@ echo "
 |B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
 +-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
 "
-}
-function banner2(){
-echo "
-          _ _       _ ___ _ 
-  ___ _ _|_| |_ _ _|_|  _|_|
- | -_| | | | | | | | |  _| |
- |___|\_/|_|_|_____|_|_| |_|
-"
+echo -e " \033[0;31mVersion:\033[0;32m $REVISION\033[0m \033[0;31mRelease: \033[0;32m$release_date\033[0m " 
 }
 function DATETIME(){
 datestamp=$(date +%F)
@@ -50,8 +43,8 @@ timestamp=$(date +%I-%M-%S-%p)
 printf "$timestamp\n";
 }
 function setupenv(){
-printf "| [ >> ] SETTING UP! @ "; DATETIME;
-REVISION=054
+REVISION=055
+release_date="07/10/2013"
 mydistro="`awk '{print $1}' /etc/issue`"
 myversion="`awk '{print $2}' /etc/issue`"
 myrelease="`awk '{print $3}' /etc/issue`"
@@ -251,12 +244,10 @@ if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
 critarray=( aircrack-ng iptables dnsmasq dhcpd3 dhcpd xterm python macchanger wget perl brctl )
 for depend in ${critarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
-crit_error=1
 done
 warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
-warn_error=1
 done
 }
 function uninstalldeps(){
@@ -1494,9 +1485,9 @@ done
 # --------------------------- #
 # SCRIPT ACTUALLY STARTS HERE #
 # --------------------------- #
+setupenv
 banner
 echo   "+===================================+"
-setupenv
 sleep 5
 # debugenv
 pinginternet

@@ -894,10 +894,8 @@ function nodhcpserver(){
 echo "* Not Using A Local DHCP Server *"
 }
 function apachesetup(){
-APACHECONF=/etc/apache2/sites-available
-if [ -f $APACHECONF/default~ ]; then cp $APACHECONF/default~ $APACHECONF/default;
-else cp $APACHECONF/default $APACHECONF/default~; fi
-sed -n "s/AllowOverride None/AllowOverride All/g" $APACHECONF/default
+APACHECONF=/etc/apache2
+sed -n "s/AllowOverride None/AllowOverride All/g" $APACHECONF/apache2.conf
 echo > /var/log/apache2/access.log
 echo > /var/log/apache2/error.log
 ln -s /var/log/apache2/access.log $sessionfolder/logs/access.log
@@ -1493,7 +1491,7 @@ sleep 5
 pinginternet
 depends
 echo   "+===================================+"
-# apachesetup
+apachesetup
 # apachecheck
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then internetmenu; fi

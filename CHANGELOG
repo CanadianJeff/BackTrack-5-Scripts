@@ -23,6 +23,8 @@ TODO: finish and cleanup dependency check
 REV 54:
 
 REV 55: (Oct 8 2013)
+DONE: stopped logging to syslog as it filled up quickly
 DONE: fixed logging to file
-DONE: logs will be rotated every hour
+TODO: logs will be rotated every 100MB
+TODO: load settings from evilwifi.conf
 TODO: almost ready to be released to the public for ALPHA/BETA testing

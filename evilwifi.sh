@@ -659,6 +659,7 @@ iptables --table nat --flush
 iptables --table nat --delete-chain
 iptables --table raw --flush
 iptables --table raw --delete-chain
+
 # fw_stop_extra
 echo "0" > /proc/sys/net/ipv4/ip_forward
 FW_INITIALIZED=0
@@ -723,88 +724,88 @@ iptables --table mangle --new-chain zone_wan_MSSFIX
 iptables --table mangle --new-chain internet
 }
 function fw_synflood(){
-iptables --table filter --append syn_flood -j RETURN -p tcp --syn -m limit --limit 25/second --limit-burst 50
-iptables --table filter --append syn_flood -j DROP
+iptables --table filter --append syn_flood --jump RETURN -p tcp --syn -m limit --limit 25/second --limit-burst 50
+iptables --table filter --append syn_flood --jump DROP
 }
 function fw_zones(){
 echo "  Loading Input..."
-iptables --table filter --append INPUT -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
-iptables --table filter --append INPUT -j DROP -m conntrack --ctstate INVALID
-iptables --table filter --append INPUT -j ACCEPT -i lo
-iptables --table filter --append INPUT -j syn_flood -p tcp --syn
-iptables --table filter --append INPUT -j input_rule
-iptables --table filter --append INPUT -j input
+iptables --table filter --append INPUT --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append INPUT --jump DROP -m conntrack --ctstate INVALID
+iptables --table filter --append INPUT --jump ACCEPT -i lo
+iptables --table filter --append INPUT --jump syn_flood -p tcp --syn
+iptables --table filter --append INPUT --jump input_rule
+iptables --table filter --append INPUT --jump input
 iptables --table filter -P INPUT ACCEPT
 echo "  Loading Output..."
-iptables --table filter --append OUTPUT -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
-iptables --table filter --append OUTPUT -j DROP -m conntrack --ctstate INVALID
-iptables --table filter --append OUTPUT -j ACCEPT -o lo
-iptables --table filter --append OUTPUT -j output_rule
-iptables --table filter --append OUTPUT -j output
+iptables --table filter --append OUTPUT --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append OUTPUT --jump DROP -m conntrack --ctstate INVALID
+iptables --table filter --append OUTPUT --jump ACCEPT -o lo
+iptables --table filter --append OUTPUT --jump output_rule
+iptables --table filter --append OUTPUT --jump output
 iptables --table filter -P OUTPUT ACCEPT
 echo "  Loading Forward..."
-iptables --table filter --append FORWARD -j ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
-iptables --table filter --append FORWARD -j DROP -m conntrack --ctstate INVALID
-iptables --table filter --append FORWARD -j forwarding_rule
-iptables --table filter --append FORWARD -j forward
+iptables --table filter --append FORWARD --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
+iptables --table filter --append FORWARD --jump DROP -m conntrack --ctstate INVALID
+iptables --table filter --append FORWARD --jump forwarding_rule
+iptables --table filter --append FORWARD --jump forward
 iptables --table filter -P FORWARD ACCEPT
 }
 function fw_rules(){
-iptables --table filter --append reject -j REJECT --reject-with tcp-reset -p tcp
-iptables --table filter --append reject -j REJECT --reject-with port-unreach
-iptables --table filter --append zone_lan -j zone_lan_ACCEPT
-iptables --table filter --insert zone_lan 1 -j input_lan
-iptables --table filter --append zone_lan_forward -j zone_lan_ACCEPT
-iptables --table filter --insert zone_lan_forward 1 -j forwarding_lan
-iptables --table filter --append output -j zone_lan_ACCEPT
-iptables --table nat --append PREROUTING -j prerouting_rule
-iptables --table nat --append POSTROUTING -j postrouting_rule
-iptables --table nat --insert zone_lan_prerouting 1 -j prerouting_lan
+iptables --table filter --append reject --jump REJECT --reject-with tcp-reset -p tcp
+iptables --table filter --append reject --jump REJECT --reject-with port-unreach
+iptables --table filter --append zone_lan --jump zone_lan_ACCEPT
+iptables --table filter --insert zone_lan 1 --jump input_lan
+iptables --table filter --append zone_lan_forward --jump zone_lan_ACCEPT
+iptables --table filter --insert zone_lan_forward 1 --jump forwarding_lan
+iptables --table filter --append output --jump zone_lan_ACCEPT
+iptables --table nat --append PREROUTING --jump prerouting_rule
+iptables --table nat --append POSTROUTING --jump postrouting_rule
+iptables --table nat --insert zone_lan_prerouting 1 --jump prerouting_lan
 }
 ###############################
 # NETWORK ADDRESS TRANSLATION #
 ###############################
 function fw_interfaces(){
-iptables --table filter --append FORWARD -j ACCEPT -i $BRLANIFACE
-iptables --table filter --append zone_lan_ACCEPT -j ACCEPT -o $BRLANIFACE
-iptables --table filter --append zone_lan_ACCEPT -j ACCEPT -i $BRLANIFACE
-iptables --table filter --append zone_lan_DROP -j DROP -o $BRLANIFACE
-iptables --table filter --append zone_lan_DROP -j DROP -i $BRLANIFACE
-iptables --table filter --append zone_lan_REJECT -j reject -o $BRLANIFACE
-iptables --table filter --append zone_lan_REJECT -j reject -i $BRLANIFACE
-iptables --table filter --append input -j zone_lan -i $BRLANIFACE
-iptables --table filter --append forward -j zone_lan_forward -i $BRLANIFACE
-iptables --table nat --append PREROUTING -j zone_lan_prerouting -i $BRLANIFACE
-iptables --table raw --append PREROUTING -j zone_lan_notrack -i $BRLANIFACE
-iptables --table nat --append POSTROUTING -j zone_lan_nat -o $BRLANIFACE
+iptables --table filter --append FORWARD --jump ACCEPT -i $BRLANIFACE
+iptables --table filter --append zone_lan_ACCEPT --jump ACCEPT -o $BRLANIFACE
+iptables --table filter --append zone_lan_ACCEPT --jump ACCEPT -i $BRLANIFACE
+iptables --table filter --append zone_lan_DROP --jump DROP -o $BRLANIFACE
+iptables --table filter --append zone_lan_DROP --jump DROP -i $BRLANIFACE
+iptables --table filter --append zone_lan_REJECT --jump reject -o $BRLANIFACE
+iptables --table filter --append zone_lan_REJECT --jump reject -i $BRLANIFACE
+iptables --table filter --append input --jump zone_lan -i $BRLANIFACE
+iptables --table filter --append forward --jump zone_lan_forward -i $BRLANIFACE
+iptables --table nat --append PREROUTING --jump zone_lan_prerouting -i $BRLANIFACE
+iptables --table raw --append PREROUTING --jump zone_lan_notrack -i $BRLANIFACE
+iptables --table nat --append POSTROUTING --jump zone_lan_nat -o $BRLANIFACE
 }
 function fw_wan(){
-iptables --table filter --append zone_wan -j zone_wan_ACCEPT
-iptables --table filter --insert zone_wan 1 -j input_wan
-iptables --table filter --insert zone_wan 1 -j ACCEPT -p udp --dport 68
-iptables --table filter --insert zone_wan 2 -j ACCEPT -p icmp
-iptables --table filter --append zone_wan_forward -j zone_wan_ACCEPT
-iptables --table filter --insert zone_wan_forward 1 -j forwarding_wan
-iptables --table filter --insert zone_wan_forward 1 -j zone_lan_ACCEPT
-iptables --table filter --insert zone_wan_forward 1 -j DROP -p tcp
-iptables --table nat --append zone_wan_nat -j MASQUERADE -s 0.0.0.0/0 -d 0.0.0.0/0
-iptables --table nat --insert zone_wan_prerouting 1 -j prerouting_wan
-iptables --table filter --append output -j zone_wan_ACCEPT
-iptables --table mangle --append FORWARD -j zone_wan_MSSFIX
-iptables --table mangle --append zone_wan_MSSFIX -j TCPMSS -o $WANIFACE -p tcp --tcp-flags SYN,RST SYN --clamp-mss-to-pmtu
-iptables --table mangle --append PREROUTING -i $BRLANIFACE -p tcp --dport 80 -j internet
-iptables --table mangle --append internet -j MARK --set-mark 99
-iptables --table filter --append zone_wan_ACCEPT -j ACCEPT -o $WANIFACE
-iptables --table filter --append zone_wan_ACCEPT -j ACCEPT -i $WANIFACE
-iptables --table filter --append zone_wan_DROP -j DROP -o $WANIFACE
-iptables --table filter --append zone_wan_DROP -j DROP -i $WANIFACE
-iptables --table filter --append zone_wan_REJECT -j reject -o $WANIFACE
-iptables --table filter --append zone_wan_REJECT -j reject -i $WANIFACE
-iptables --table filter --append input -j zone_wan -i $WANIFACE
-iptables --table filter --append forward -j zone_wan_forward -i $WANIFACE
-iptables --table filter -t nat --append PREROUTING -j zone_wan_prerouting -i $WANIFACE
-iptables --table filter -t raw --append PREROUTING -j zone_wan_notrack -i $WANIFACE
-iptables --table filter -t nat --append POSTROUTING -j zone_wan_nat -o $WANIFACE
+iptables --table filter --append zone_wan --jump zone_wan_ACCEPT
+iptables --table filter --insert zone_wan 1 --jump input_wan
+iptables --table filter --insert zone_wan 1 --jump ACCEPT -p udp --dport 68
+iptables --table filter --insert zone_wan 2 --jump ACCEPT -p icmp
+iptables --table filter --append zone_wan_forward --jump zone_wan_ACCEPT
+iptables --table filter --insert zone_wan_forward 1 --jump forwarding_wan
+iptables --table filter --insert zone_wan_forward 1 --jump zone_lan_ACCEPT
+iptables --table filter --insert zone_wan_forward 1 --jump DROP -p tcp
+iptables --table nat --append zone_wan_nat --jump MASQUERADE -s 0.0.0.0/0 -d 0.0.0.0/0
+iptables --table nat --insert zone_wan_prerouting 1 --jump prerouting_wan
+iptables --table filter --append output --jump zone_wan_ACCEPT
+iptables --table mangle --append FORWARD --jump zone_wan_MSSFIX
+iptables --table mangle --append zone_wan_MSSFIX --jump TCPMSS -o $WANIFACE -p tcp --tcp-flags SYN,RST SYN --clamp-mss-to-pmtu
+iptables --table mangle --append PREROUTING -i $BRLANIFACE -p tcp --dport 80 --jump internet
+iptables --table mangle --append internet --jump MARK --set-mark 99
+iptables --table filter --append zone_wan_ACCEPT --jump ACCEPT -o $WANIFACE
+iptables --table filter --append zone_wan_ACCEPT --jump ACCEPT -i $WANIFACE
+iptables --table filter --append zone_wan_DROP --jump DROP -o $WANIFACE
+iptables --table filter --append zone_wan_DROP --jump DROP -i $WANIFACE
+iptables --table filter --append zone_wan_REJECT --jump reject -o $WANIFACE
+iptables --table filter --append zone_wan_REJECT --jump reject -i $WANIFACE
+iptables --table filter --append input --jump zone_wan -i $WANIFACE
+iptables --table filter --append forward --jump zone_wan_forward -i $WANIFACE
+iptables --table filter -t nat --append PREROUTING --jump zone_wan_prerouting -i $WANIFACE
+iptables --table filter -t raw --append PREROUTING --jump zone_wan_notrack -i $WANIFACE
+iptables --table filter -t nat --append POSTROUTING --jump zone_wan_nat -o $WANIFACE
 }
 function fw_listeningports(){
 netstat -npltw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/logs/listentcp.txt
@@ -812,62 +813,62 @@ netstat -npluw | awk '/0.0.0.0/ {print $4}' | cut -f2 -d ':' > $sessionfolder/lo
 }
 function fw_natreflection(){
 fw_listeningports
-iptables --table nat --append prerouting_rule -j nat_reflection_in
-iptables --table nat --append postrouting_rule -j nat_reflection_out
-iptables --table filter --append forwarding_rule -j nat_reflection_fwd
+iptables --table nat --append prerouting_rule --jump nat_reflection_in
+iptables --table nat --append postrouting_rule --jump nat_reflection_out
+iptables --table filter --append forwarding_rule --jump nat_reflection_fwd
 for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
-iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p tcp --dport $TCPPORT -j DNAT --to $TAPIP:$TCPPORT;
-iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT -j SNAT --to-source $TAPIP;
-iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT -j ACCEPT;
+iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p tcp --dport $TCPPORT --jump DNAT --to $TAPIP:$TCPPORT;
+iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT --jump SNAT --to-source $TAPIP;
+iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p tcp --dport $TCPPORT --jump ACCEPT;
 done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p udp --dport $UDPPORT -j DNAT --to $TAPIP:$UDPPORT;
-iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT -j SNAT --to-source $TAPIP;
-iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT -j ACCEPT;
+iptables --table nat --append nat_reflection_in -s $TAPIP/16 -d $WANIP -p udp --dport $UDPPORT --jump DNAT --to $TAPIP:$UDPPORT;
+iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT --jump SNAT --to-source $TAPIP;
+iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT --jump ACCEPT;
 done
 }
 function fw_rules(){
 fw_listeningports
 for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
-iptables --table nat --append zone_wan_prerouting -j DNAT -d $WANIP/32 -p tcp --dport $TCPPORT --to-destination $TAPIP:$TCPPORT;
-iptables --table filter --append zone_wan_forward -j ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
+iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p tcp --dport $TCPPORT --to-destination $TAPIP:$TCPPORT;
+iptables --table filter --append zone_wan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
 done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-iptables --table nat --append zone_wan_prerouting -j DNAT -d $WANIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
-iptables --table filter --append zone_wan_forward -j ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
+iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
+iptables --table filter --append zone_wan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
 done
 }
 function fw_logs(){
-iptables --table filter --append logaccept -m limit --limit 2/m -j LOG --log-prefix "LOGACCEPT: "
-iptables --table filter --append logaccept -j ACCEPT
-iptables --table filter --append logbrute -m limit --limit 5/m -j LOG --log-prefix "LOGBRUTE: "
-iptables --table filter --append logbrute -j DROP
-iptables --table filter --append logdrop -m limit --limit 5/m -j LOG --log-prefix "LOGDROP: "
-iptables --table filter --append logdrop -j DROP
-iptables --table filter --append logreject -m limit --limit 5/m -j LOG --log-prefix "LOGREJECT: "
-iptables --table filter --append logreject -j REJECT -p tcp --reject-with tcp-reset
-iptables --table filter --append logreject -j DROP
+iptables --table filter --append logaccept -m limit --limit 2/m --jump LOG --log-prefix "LOGACCEPT: "
+iptables --table filter --append logaccept --jump ACCEPT
+iptables --table filter --append logbrute -m limit --limit 5/m --jump LOG --log-prefix "LOGBRUTE: "
+iptables --table filter --append logbrute --jump DROP
+iptables --table filter --append logdrop -m limit --limit 5/m --jump LOG --log-prefix "LOGDROP: "
+iptables --table filter --append logdrop --jump DROP
+iptables --table filter --append logreject -m limit --limit 5/m --jump LOG --log-prefix "LOGREJECT: "
+iptables --table filter --append logreject --jump REJECT -p tcp --reject-with tcp-reset
+iptables --table filter --append logreject --jump DROP
 }
 function fw_custom(){
-# iptables --table filter --append INPUT -i $WANIFACE -p tcp --dport 22 -j logbrute
-iptables --table filter --append INPUT -p tcp -d $TAPIP --dport 22 -j logaccept
-# iptables --table filter --append INPUT -i $WANIFACE -p icmp -j ACCEPT
-# iptables --table filter --append INPUT -i lo -m state --state NEW -j ACCEPT
-iptables --table filter --append INPUT -i $TAPIFACE -m state --state NEW -j logaccept
-iptables --table filter --append INPUT -i eth0 -m state --state NEW -j logaccept
-iptables --table filter --append INPUT -j logdrop
-iptables --table filter --append OUTPUT -o $TAPIFACE -j logaccept
-# iptables --table filter --append FORWARD -o $WANIFACE -s $NETWORK -j logaccept
-iptables --table filter --append FORWARD -i $TAPIFACE -j logaccept
-iptables --table filter --append FORWARD -i $TAPIFACE -o $TAPIFACE -j logaccept
-# iptables --table filter --append FORWARD -j victim2wan
-iptables --table filter --append FORWARD -m state --state RELATED,ESTABLISHED -j logaccept
-# iptables --table filter --append FORWARD -i $TAPIFACE -o $WANIFACE -j logaccept
-iptables --table filter --append FORWARD -o $TAPIFACE -d $TAPIP -j logaccept
-iptables --table filter --append FORWARD -i $TAPIFACE -m state --state NEW -j logaccept
-iptables --table filter --append FORWARD -j logdrop
-iptables --table nat --append PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 -j DNAT --to $TAPIP
-iptables --table nat --append POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -j MASQUERADE
+# iptables --table filter --append INPUT -i $WANIFACE -p tcp --dport 22 --jump logbrute
+iptables --table filter --append INPUT -p tcp -d $TAPIP --dport 22 --jump logaccept
+# iptables --table filter --append INPUT -i $WANIFACE -p icmp --jump ACCEPT
+# iptables --table filter --append INPUT -i lo -m state --state NEW --jump ACCEPT
+iptables --table filter --append INPUT -i $TAPIFACE -m state --state NEW --jump logaccept
+iptables --table filter --append INPUT -i eth0 -m state --state NEW --jump logaccept
+iptables --table filter --append INPUT --jump logdrop
+iptables --table filter --append OUTPUT -o $TAPIFACE --jump logaccept
+# iptables --table filter --append FORWARD -o $WANIFACE -s $NETWORK --jump logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE --jump logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE -o $TAPIFACE --jump logaccept
+# iptables --table filter --append FORWARD --jump victim2wan
+iptables --table filter --append FORWARD -m state --state RELATED,ESTABLISHED --jump logaccept
+# iptables --table filter --append FORWARD -i $TAPIFACE -o $WANIFACE --jump logaccept
+iptables --table filter --append FORWARD -o $TAPIFACE -d $TAPIP --jump logaccept
+iptables --table filter --append FORWARD -i $TAPIFACE -m state --state NEW --jump logaccept
+iptables --table filter --append FORWARD --jump logdrop
+iptables --table nat --append PREROUTING -i $TAPIFACE -p tcp -m mark --mark 99 -m tcp --dport 80 --jump DNAT --to $TAPIP
+iptables --table nat --append POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK --jump MASQUERADE
 }
 #####################
 # STARTING SERVICES #

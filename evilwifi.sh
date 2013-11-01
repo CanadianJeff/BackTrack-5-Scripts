@@ -631,9 +631,11 @@ echo "Loading zones"
 fw_zones
 echo "Loading forwardings"
 fw_wan
+echo "Loading LAN rules"
+fw_lan_rules
 if [ "$WANIP" != "" ]; then
-echo "Loading rules"
-fw_rules
+echo "Loading WAN rules"
+fw_wan_rules
 echo "Loading redirects"
 fw_natreflection
 fi
@@ -659,7 +661,6 @@ iptables --table nat --flush
 iptables --table nat --delete-chain
 iptables --table raw --flush
 iptables --table raw --delete-chain
-
 # fw_stop_extra
 echo "0" > /proc/sys/net/ipv4/ip_forward
 FW_INITIALIZED=0
@@ -827,7 +828,19 @@ iptables --table nat --append nat_reflection_out -s $TAPIP/16 -d $TAPIP -p udp -
 iptables --table filter --append nat_reflection_fwd -s $TAPIP/16 -d $TAPIP -p udp --dport $UDPPORT --jump ACCEPT;
 done
 }
-function fw_rules(){
+function fw_lan_rules(){
+fw_listeningports
+for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
+iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport $TCPPORT --to-destination $TAPIP:$TCPPORT;
+iptables --table filter --append zone_lan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
+done
+for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
+iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
+iptables --table filter --append zone_lan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
+done
+iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport 1:65535 --to-destination $TAPIP:23;
+}
+function fw_wan_rules(){
 fw_listeningports
 for TCPPORT in `grep -v N $sessionfolder/logs/listentcp.txt`; do
 iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p tcp --dport $TCPPORT --to-destination $TAPIP:$TCPPORT;
@@ -1019,7 +1032,6 @@ brctl addbr $BRLANIFACE
 ifconfig $TAPIFACE 0.0.0.0 promisc
 echo "* ATTEMPTING TO BRIDGE ON $TAPIFACE (br-lan) *"
 brctl addif $BRLANIFACE $TAPIFACE
-
 ifconfig $BRLANIFACE $TAPIP netmask $NETMASK up;
 route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP;
 BRLAN=up

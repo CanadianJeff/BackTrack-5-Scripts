@@ -19,14 +19,6 @@ TESTING=0                  #test mode does not start anything just writes config
 SYSLOG_CHECK=0             #Seconds to check syslog is running
 VERBOSE=0                  #
 ####################
-#ipcalc_tmp=
-#ADDRESS=$(cat $ipcalc_tmp | grep Address | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
-#NETMASK=$(cat $ipcalc_tmp | grep Netmask | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
-#WILDCARD=$(cat $ipcalc_tmp | grep WildCard | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
-#NETWORK=
-#HOSTMIN=$(cat $ipcalc_tmp | grep HostMin | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
-#HOSTMAX=$(cat $ipcalc_tmp | grep HostMax | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
-#BROADCAST=$(cat $ipcalc_tmp | grep Broadcast | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
 function banner(){
 clear
 echo -e "
@@ -40,14 +32,14 @@ echo -e "
  -----------------------------------------------------"
 }
 function DATETIME(){
-datestamp=$(date +%F)
-timestamp=$(date +%I-%M-%S-%p)
-printf "$timestamp\n";
+datestamp=$(date +%Y%m%d)
+timestamp=$(date +%H%M%S)
+printf "[$datestamp.$timestamp]";
 }
 function setupenv(){
 userprompt="root@OpenWRT:/# "
-REVISION=055
-release_date="08/10/2013"
+REVISION=056
+release_date="05/11/2013"
 mydistro="`awk '/DISTRIB_ID/' /etc/lsb-release | cut -d '=' -f2`"
 myversion="`awk '/DISTRIB_RELEASE/' /etc/lsb-release | cut -d '=' -f2`"
 myrelease="`awk '/DISTRIB_CODENAME/' /etc/lsb-release | cut -d '=' -f2`"
@@ -573,6 +565,10 @@ echo "" >> $dnsmasqconf
 echo "address=/$DNSURL/$TAPIP" >> $dnsmasqconf
 echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
+echo "dhcp-range=apple,10.0.2.1,10.0.2.254,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "dhcp-range=android,10.0.3.1,10.0.3.254,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "dhcp-range=gaming,10.0.4.1,10.0.4.254,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "" >> $dnsmasqconf
 echo "dhcp-range=wirelesslan,$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "no-dhcp-interface=$WANIFACE" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
@@ -585,6 +581,7 @@ echo "interface=$BRLANIFACE" >> $dnsmasqconf
 echo "dhcp-lease-max=102" >> $dnsmasqconf
 echo "dhcp-option=wirelesslan,3,$TAPIP" >> $dnsmasqconf
 echo "dhcp-option=252,\"\n\"" >> $dnsmasqconf
+echo "dhcp-option=42,$TAPIP" >> $dnsmasqconf
 #echo "dhcp-option=wirelesslan,3," >> $dnsmasqconf
 echo "nameserver $TAPIP" > $sessionfolder/resolv.conf.auto
 if [ "$mode" = "1" ]; then startdnsmasq; fi
@@ -835,10 +832,10 @@ iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tc
 iptables --table filter --append zone_lan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
 done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
-iptables --table filter --append zone_lan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
+iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p udp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
+iptables --table filter --append zone_lan_forward --jump ACCEPT -d $TAPIP/32 -p udp --dport $UDPPORT;
 done
-iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport 1:65535 --to-destination $TAPIP:23;
+# iptables --table nat --append zone_lan_prerouting --jump DNAT -d $TAPIP/32 -p tcp --dport 1:65535 --to-destination $TAPIP:23;
 }
 function fw_wan_rules(){
 fw_listeningports
@@ -847,8 +844,8 @@ iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p tc
 iptables --table filter --append zone_wan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $TCPPORT;
 done
 for UDPPORT in `grep -v N $sessionfolder/logs/listenudp.txt`; do
-iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p tcp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
-iptables --table filter --append zone_wan_forward --jump ACCEPT -d $TAPIP/32 -p tcp --dport $UDPPORT;
+iptables --table nat --append zone_wan_prerouting --jump DNAT -d $WANIP/32 -p udp --dport $UDPPORT --to-destination $TAPIP:$UDPPORT;
+iptables --table filter --append zone_wan_forward --jump ACCEPT -d $TAPIP/32 -p udp --dport $UDPPORT;
 done
 }
 function fw_logs(){
@@ -1037,8 +1034,8 @@ route add -net $TAPIPBLOCK netmask $NETMASK gw $TAPIP;
 BRLAN=up
 }
 function brlan_addwan(){
-dhclient -4 -d $WANIFACE &>$sessionfolder/logs/bridge.log
-BRLANDHCP=$(awk '/DHCPOFFERS/ { print $1 }' < <(cat $sessionfolder/logs/bridge.log))
+dhclient -1 -4 -d $WANIFACE &>$sessionfolder/logs/bridge.log
+BRLANDHCP=$(awk '/DHCPACK/ { print $3 }' < <(cat $sessionfolder/logs/bridge.log))
 while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* [$FAIL] No DHCP Server Found On $WANIFACE *"

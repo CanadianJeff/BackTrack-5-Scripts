@@ -53,7 +53,7 @@ resolution=$(xdpyinfo | grep 'dimensions:' | awk -F" " {'print $2'} | awk -F"x" 
 folder=/tmp/.evilwifi
 datestamp=$(date +%Y%m%d)
 timestamp=$(date +%H%M%S)
-sessionfolder=$folder/$datestamp/$timestamp;
+sessionfolder=$folder/$datestamp.$timestamp;
 settings=/etc/evilwifi.conf
 lockfile=$folder/evilwifi.lock
 dhcpconf=/etc/dhcp3/dhcpd.conf
@@ -158,6 +158,7 @@ exit
 fi
 }
 function killscript(){
+echo ""
 DATETIME; echo "Detected CTRL+C..."
 stopshit
 monitormodestop
@@ -168,25 +169,35 @@ trap killscript INT HUP;
 ####################
 # INTERNET TESTING #
 ####################
+function internetcheck(){
+DATETIME; echo " [ >> ] Internet Testing Started ";
+dnscheck
+pinginternet
+if [ "$DNS" = "FALSE" ]; then DATETIME; echo " [$FAIL] DNS Error ($WANIP) "; fi
+if [ "$INTERNET" = "FALSE" ]; then DATETIME; echo " [$FAIL] No Internet Connection ($WANIP) "; fi
+if [ "$INTERNET" = "TRUE" ]; then DATETIME; echo " [$OK] We Have Internet ($WANIP) "; fi
+if [ "$ICMPBLOCK" = "TRUE" ]; then DATETIME; echo " [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP) "; fi
+DATETIME; echo " [ >> ] Internet Testing Finished ";
+}
 function icmptest(){
-echo "| [ >> ] ICMP TEST @ "; DATETIME;
+DATETIME; echo " [ >> ] ICMP TEST ";
 
 }
-function pinginternet(){
-echo "| [ >> ] WAN ICMP TEST @ "; DATETIME;
-INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
-if [ "$INTERNETTEST" = "64" ]; then INTERNET=TRUE;
-WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+');
-else INTERNET=FALSE; fi
-if [ "$WANIP" != "" ]; then INTERNET=TRUE; else INTERNET=FALSE; fi
-}
 function dnscheck(){
-echo "| [ >> ] DNS TEST @ "; DATETIME;
+DATETIME; echo " [ >> ] WAN DNS TEST ";
 DNSCHECK=$(awk '/bytes from/ { print $1 }' < <(ping raw.github.com -c 1 -w 3))
 if [ "$DNSCHECK" = "64" ]; then DNS=TRUE; else DNS=FALSE; fi
 }
+function pinginternet(){
+DATETIME; echo " [ >> ] WAN ICMP TEST ";
+INTERNETTEST=$(awk '/bytes from/ { print $1 }' < <(ping 8.8.8.8 -c 1 -w 3))
+if [ "$INTERNETTEST" = "64" ]; then DATETIME; echo " [$OK] ICMP PASSED";
+WANIP=$(curl -s checkip.dyndns.org | grep -Eo '[0-9\.]+');
+else INTERNET=FALSE; fi
+if [ "$WANIP" != "" ]; then INTERNET=TRUE; fi
+}
 function pinggateway(){
-echo "[ >> ] GATEWAY ICMP TEST @ "; DATETIME;
+DATETIME; echo " [ >> ] GATEWAY ICMP TEST ";
 GATEWAYRDNS=$(awk '/br-lan/ && /UG/ {print $2}' < <(route))
 GATEWAY=$(awk '/br-lan/ && /UG/ { print $2 }' < <(route -n))
 DATETIME; echo "Pinging $GATEWAYRDNS [$GATEWAY] with 64 bytes of data:"
@@ -238,16 +249,11 @@ DATETIME; echo " [$CRIT] Please Run This Script As Root or With Sudo! ";
 echo "";
 exit 0; fi
 if [ -f $settings ]; then
-DATETIME; echo " [$OK] Config File Found! "; 
-DATETIME; echo " [ >> ] Loading Settings From $settings"
+DATETIME; echo " [$OK] Loading Settings From $settings"
 LOADCONF=0; else LOADCONF=0; fi
 if [ "$mydistro" = "BackTrack" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion Release $myrelease "; fi
 if [ "$mydistro" = "Kali" ]; then DATETIME; echo " [$OK] $mydistro Release $myrelease "; fi
 if [ "$mydistro" = "Ubuntu" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion "; fi
-if [ "$INTERNET" = "FALSE" ]; then DATETIME; echo " [$FAIL] No Internet Connection :-( "; fi
-if [ "$INTERNET" = "TRUE" ]; then DATETIME; echo " [$OK] We Have Internet :-) "; dnscheck; fi
-if [ "$ICMPBLOCK" = "TRUE" ]; then DATETIME; echo " [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP) "; fi
-if [ "$DNS" = "FALSE" ]; then DATETIME; echo " [$FAIL] DNS Error Cant Update Check "; fi
 DATETIME; echo " [ >> ] Removing Conflicting Installed Packages!";
 dpkg -P --force-depends hostapd 2>/dev/null
 DATETIME; echo " [ >> ] Checking For Missing Packages!";
@@ -1528,7 +1534,7 @@ echo ""
 sleep 5
 echo "+-----------------------------------------------------+"
 # debugenv
-pinginternet
+internetcheck
 depends
 apachesetup
 # apachecheck

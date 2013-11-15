@@ -645,8 +645,7 @@ fw_interfaces
 echo "1" > /proc/sys/net/ipv4/ip_forward
 }
 function fw_stop(){
-fw_init
-DATETIME; echo "Flushing firewall"
+DATETIME; echo "Flushing Firewall"
 iptables --table filter --policy INPUT ACCEPT
 iptables --table filter --policy OUTPUT ACCEPT
 iptables --table filter --policy FORWARD ACCEPT
@@ -673,7 +672,7 @@ function fw_is_loaded(){
 echo ""
 }
 function fw_init(){
-DATETIME; echo "STARTING FIREWALL"
+DATETIME; echo "Init Firewall"
 # [ -z "$FW_INITIALIZED" ] || return 0
 # scan_interfaces
 FW_INITIALIZED=1

@@ -2,22 +2,21 @@
 ####################
 #  CONFIG SECTION  #
 ####################
-TAPIP=10.0.0.1             #ip address of moniface
+TAPIP=192.168.1.254        #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
-NETWORK=10.0.0.0/16        #Network Size
-TAPIPBLOCK=10.0.0.0        #subnet
-DHCPS=10.0.0.1             #dhcp start range
-DHCPE=10.0.255.254         #dhcp end range
-BROADCAST=10.0.255.255     #broadcast address
+NETWORK=192.168.0.0/16     #Network Size
+HOSTMIN=192.168.0.1        #dhcp start range
+HOSTMAX=192.168.255.254    #dhcp end range
+BROADCAST=192.168.255.255  #broadcast address
 # Hosts/Net 65534          #CLASS A, Private Internet
+TAPIPBLOCK=192.168.0.0     #subnet
 DHCPL=1h                   #time for dhcp lease
 ####################
 AUTO_UPDATES=1             #Auto check for updated script
 TESTING=0                  #test mode does not start anything just writes configs
-SYSLOG_CHECK=0             #Seconds to check syslog is running
-VERBOSE=0                  #
+VERBOSE=0                  #Shows verbose logs
 ####################
 function banner(){
 clear
@@ -537,7 +536,7 @@ echo "subnet $TAPIPBLOCK netmask $NETMASK {" >> $dhcpconf
 echo "option domain-name backtrack-linux;" >> $dhcpconf
 echo "option domain-name-servers $TAPIP;" >> $dhcpconf
 echo "option routers $TAPIP;" >> $dhcpconf
-echo "range $DHCPS $DHCPE;" >> $dhcpconf
+echo "range $HOSTMIN $HOSTMAX;" >> $dhcpconf
 echo "allow unknown-clients;" >> $dhcpconf
 echo "one-lease-per-client false;" >> $dhcpconf
 echo "}" >> $dhcpconf
@@ -570,7 +569,7 @@ echo "dhcp-range=apple,10.0.2.1,10.0.2.254,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "dhcp-range=android,10.0.3.1,10.0.3.254,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "dhcp-range=gaming,10.0.4.1,10.0.4.254,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
-echo "dhcp-range=wirelesslan,$DHCPS,$DHCPE,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "dhcp-range=wirelesslan,$HOSTMIN,$HOSTMAX,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "no-dhcp-interface=$WANIFACE" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
 echo "# Anything Under This Is Custom Added!" >> $dnsmasqconf
@@ -1128,7 +1127,7 @@ banner
 echo "+-----------------------------------------------------+"
 echo "| Which AP Software?                                  |"
 echo "+-----------------------------------------------------+"
-echo "| 1) HOSTAPD wITH KARMA                                "
+echo "| 1) HOSTAPD WITH KARMA                                "
 echo "| 2) HOSTAPD NO KARMA                                  "
 echo "| 3) Airbase-NG WITH KARMA                             "
 echo "| 4) Airbase-NG NO KARMA                               "

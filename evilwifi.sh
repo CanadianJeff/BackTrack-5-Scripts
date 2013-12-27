@@ -58,8 +58,7 @@ lockfile=$folder/evilwifi.lock
 dhcpconf=/etc/dhcp3/dhcpd.conf
 hostapdconf=$sessionfolder/config/hostapd.conf
 arpaaddr=$(echo $TAPIP|rev)
-currentmac=$(ifconfig eth0 | grep 'HWaddr' | awk '{print $5}' | tr '[a-z]' '[A-Z]')
-# if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
+if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
 mkdir -p $sessionfolder;
 touch $folder/currentsession.txt

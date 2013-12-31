@@ -19,7 +19,7 @@ TESTING=0                  #test mode does not start anything just writes config
 VERBOSE=0                  #Shows verbose logs
 ####################
 function banner(){
-clear
+#clear
 echo -e "
   _______                     ________        __
  |       |.-----.-----.-----.|  |  |  |.----.|  |_
@@ -58,6 +58,7 @@ lockfile=$folder/evilwifi.lock
 dhcpconf=/etc/dhcp3/dhcpd.conf
 hostapdconf=$sessionfolder/config/hostapd.conf
 arpaaddr=$(echo $TAPIP|rev)
+# currentmac=$(ifconfig eth0 | grep 'HWaddr' | awk '{print $5}' | tr '[a-z]' '[A-Z]')
 if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
 mkdir -p $sessionfolder;
@@ -908,7 +909,6 @@ DATETIME; echo "* DNSMASQ DNS POISON!!! *"
 TERMTITLE="DNSMASQ-POISON"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
-tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf ("TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &
 }
 function startdnsmasqresolv(){
 echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
@@ -916,7 +916,6 @@ DATETIME; echo "* DNSMASQ With Internet *"
 TERMTITLE="DNSMASQ-INTERNET"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
-tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf ("TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &
 }
 function dhcpdserver(){
 TERMTITLE="DHCP SERVER"
@@ -962,6 +961,14 @@ STARTTERM
 #############################
 # SHELL SCRIPT VERBOSE MODE #
 #############################
+function taillogsdnsmasq(){
+echo "echo \$$ > $sessionfolder/pids/dnsmasqsh.pid" > $folder/dnsmasq.sh
+echo "tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf (\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &" >> $folder/dnsmasq.sh
+chmod a+x $folder/dnsmasq.sh
+echo "Running DNSMASQ.SH"
+/bin/bash $folder/dnsmasq.sh
+echo "PID: `cat $sessionfolder/pids/dnsmasqsh.pid`"
+}
 function taillogshostapd(){
 # for (i=9; i<=NF; i++)
 echo "echo \$$ > $sessionfolder/pids/probe.pid" > $folder/probe.sh

@@ -78,7 +78,6 @@ touch $sessionfolder/logs/ipcalc.log;
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
 touch $lockfile;
-echo > /var/log/syslog
 }
 function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
@@ -584,8 +583,6 @@ echo "dhcp-option=252,\"\n\"" >> $dnsmasqconf
 echo "dhcp-option=42,$TAPIP" >> $dnsmasqconf
 #echo "dhcp-option=wirelesslan,3," >> $dnsmasqconf
 echo "nameserver $TAPIP" > $sessionfolder/resolv.conf.auto
-if [ "$mode" = "1" ]; then startdnsmasq; fi
-if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
 }
 function lighttpdconfig(){
 echo "docroot=/var/www" > /etc/lighttpd.conf
@@ -965,9 +962,9 @@ function taillogsdnsmasq(){
 echo "echo \$$ > $sessionfolder/pids/dnsmasqsh.pid" > $folder/dnsmasq.sh
 echo "tail -F $sessionfolder/logs/dnsmasq.log | awk '/DHCPACK/ && /'$BRLANIFACE'/ {printf (\"TIME: %s | MAC: %s | TYPE: DHCP ACK [OK] | IP: %s | HOSTNAME: %s\n\"), $3, $8, $7, $9; fflush(stdout)}' >> $sessionfolder/logs/pwned.log &" >> $folder/dnsmasq.sh
 chmod a+x $folder/dnsmasq.sh
-echo "Running DNSMASQ.SH"
-/bin/bash $folder/dnsmasq.sh
-echo "PID: `cat $sessionfolder/pids/dnsmasqsh.pid`"
+TERMTITLE="PWNED"
+TERMCMD="/bin/bash $folder/dnsmasq.sh"
+STARTTERM
 }
 function taillogshostapd(){
 # for (i=9; i<=NF; i++)
@@ -1570,7 +1567,10 @@ if [ "$softap" = "4" ]; then monitormodestart; startairbase; fi
 sleep 2
 brlan
 # if [ "$mode" != "2" ]; then wireshark -i $TAPIFACE -k &; fi
-if [ "$DHCPSERVER" = "1" ]; then dnsmasqconfig; fi
+if [ "$DHCPSERVER" = "1" ]; then dnsmasqconfig;
+if [ "$mode" = "1" ]; then startdnsmasq; fi
+if [ "$mode" = "2" ]; then startdnsmasqresolv; fi
+fi
 if [ "$DHCPSERVER" = "2" ]; then dhcpd3config; fi
 if [ "$DHCPSERVER" = "3" ]; then udhcpdconfig; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi

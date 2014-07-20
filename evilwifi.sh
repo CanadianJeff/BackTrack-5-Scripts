@@ -1,17 +1,53 @@
 #!/bin/bash
+REVISION='056';
+RELEASE_DATE='05/11/2013';
+LAST_GIT_COMMIT_SHORTLOG='';
+LAST_GIT_COMMIT_DATE='';
+################################################################################
+#                                                                              #
+# Copyright (c) 2009-2014      Jeffery Wilkins                                 #
+#                                                                              #
+# Permission is hereby granted, free of charge, to any person obtaining a copy #
+# of this software and associated documentation files (the "Software"), to     #
+# deal in the Software without restriction, including without limitation the   #
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or  #
+# sell copies of the Software, and to permit persons to whom the Software is   #
+# furnished to do so, subject to the following conditions:                     #
+#                                                                              #
+# The above copyright notice and this permission notice shall be included in   #
+# all copies or substantial portions of the Software.                          #
+#                                                                              #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR   #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,     #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE  #
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER       #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING      #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS #
+# IN THE SOFTWARE.                                                             #
+#                                                                              #
+################################################################################
+#                                                                              #
+# Current developer:  Jeffery Wilkins                                          #
+#                                                                              #
+# Hosted at:          https://github.com/CanadianJeff/BackTrack-5-Scripts      #
+#                                                                              #
+# Tab width:          8 spaces                                                 #
+#                                                                              #
+################################################################################
+
 ####################
 #  CONFIG SECTION  #
 ####################
-TAPIP=192.168.1.254        #ip address of moniface
+TAPIP=10.0.0.1             #ip address of moniface
 NETMASK=255.255.0.0        #subnetmask
 WILDCARD=0.0.255.255       #dunno what this is
 # =>
-NETWORK=192.168.0.0/16     #Network Size
-HOSTMIN=192.168.0.1        #dhcp start range
-HOSTMAX=192.168.255.254    #dhcp end range
-BROADCAST=192.168.255.255  #broadcast address
+NETWORK=10.0.0.0/16        #Network Size
+HOSTMIN=10.0.0.1           #dhcp start range
+HOSTMAX=10.0.255.254       #dhcp end range
+BROADCAST=10.0.255.255     #broadcast address
 # Hosts/Net 65534          #CLASS A, Private Internet
-TAPIPBLOCK=192.168.0.0     #subnet
+TAPIPBLOCK=10.0.0.0        #subnet
 DHCPL=1h                   #time for dhcp lease
 ####################
 AUTO_UPDATES=1             #Auto check for updated script
@@ -27,7 +63,7 @@ echo -e "
  |_______||   __|_____|__|__||________||__|  |____|
           |__| W I R E L E S S   F R E E D O M
  -----------------------------------------------------
- PWNAGE EDITION (\033[0;31mVersion:\033[0;32m $release_date\033[0m, \033[0;31mRelease: \033[0;32mr$REVISION\033[0m)
+ PWNAGE EDITION (\033[0;31mVersion:\033[0;32m $RELEASE_DATE\033[0m, \033[0;31mRelease: \033[0;32mr$REVISION\033[0m)
  -----------------------------------------------------"
 }
 function DATETIME(){
@@ -36,9 +72,8 @@ timestamp=$(date +%H%M%S)
 printf "[$datestamp.$timestamp] ";
 }
 function setupenv(){
-userprompt="root@OpenWRT:/# "
-REVISION=056
-release_date="05/11/2013"
+echo "[ >> ] Setting Up ENV";
+userprompt="root@PwnWRT:/# "
 mydistro="`awk '/DISTRIB_ID/' /etc/lsb-release | cut -d '=' -f2`"
 myversion="`awk '/DISTRIB_RELEASE/' /etc/lsb-release | cut -d '=' -f2`"
 myrelease="`awk '/DISTRIB_CODENAME/' /etc/lsb-release | cut -d '=' -f2`"
@@ -55,15 +90,15 @@ timestamp=$(date +%H%M%S)
 sessionfolder=$folder/$datestamp.$timestamp;
 settings=/etc/evilwifi.conf
 lockfile=$folder/evilwifi.lock
-dhcpconf=/etc/dhcp3/dhcpd.conf
+dhcpconf=$sessionfolder/config/dhcpd.conf
 hostapdconf=$sessionfolder/config/hostapd.conf
+dnsmasqconf=$sessionfolder/config/dnsmasq.conf
 arpaaddr=$(echo $TAPIP|rev)
 # currentmac=$(ifconfig eth0 | grep 'HWaddr' | awk '{print $5}' | tr '[a-z]' '[A-Z]')
 if [ -f $lockfile ]; then echo "$lockfile Detected - Script Halted!"; exit 1; fi
 if [ ! -d $folder ]; then mkdir $folder; fi
 mkdir -p $sessionfolder;
-touch $folder/currentsession.txt
-echo "$sessionfolder" > $folder/currentsession.txt
+touch $folder/currentsession.txt;
 mkdir $sessionfolder/logs;
 mkdir $sessionfolder/pids;
 mkdir $sessionfolder/pcaps;
@@ -77,7 +112,10 @@ touch $sessionfolder/logs/missing.log;
 touch $sessionfolder/logs/ipcalc.log;
 touch $sessionfolder/config/hostapd.deny;
 touch $sessionfolder/config/hostapd.accept;
+touch $sessionfolder/config/hostapd.conf;
+touch $sessionfolder/config/dhcpd.conf;
 touch $lockfile;
+echo "$sessionfolder" > $folder/currentsession.txt
 }
 function STARTTERM(){
 if [ "$COLORTERM" = "xfce4-terminal" ]; then
@@ -145,14 +183,13 @@ echo "# END OF DEBUG MODE AWWWWWWWWWWWW #"
 echo "###################################"
 }
 function injectiontest(){
-DATETIME; echo "[>] Injection Test";
+DATETIME; echo "[ >> ] Injection Test";
 aireplay-ng -9 $MONIFACE > $sessionfolder/logs/injectiontest.log
 sleep 3
 if grep -q 'Injection is working!' $sessionfolder/logs/injectiontest.log; then
 DATETIME; echo "[$OK] Packet Injection Works!";
 else
-zenity --error --text "Injection is not working. Reconnect your wireless card and try again."
-echo
+DATETIME; echo "[$FAIL] Injection is not working.";
 exit
 fi
 }
@@ -173,7 +210,7 @@ DATETIME; echo " [ >> ] Internet Testing Started ";
 dnscheck
 pinginternet
 if [ "$DNS" = "FALSE" ]; then DATETIME; echo " [$FAIL] DNS Error ($WANIP) "; fi
-if [ "$INTERNET" = "FALSE" ]; then DATETIME; echo " [$FAIL] No Internet Connection ($WANIP) "; fi
+if [ "$INTERNET" = "FALSE" ]; then DATETIME; echo " [$FAIL] No Internet Connection "; fi
 if [ "$INTERNET" = "TRUE" ]; then DATETIME; echo " [$OK] We Have Internet ($WANIP) "; fi
 if [ "$ICMPBLOCK" = "TRUE" ]; then DATETIME; echo " [$WARN] Outbound ICMP Ping Is Blocked WAN SIDE ($WANIP) "; fi
 DATETIME; echo " [ >> ] Internet Testing Finished ";
@@ -209,8 +246,8 @@ ping $VICTIM -c 20 -W 1 | awk '/bytes from/ { print $5 }'
 }
 function checkupdate(){
 DATETIME; echo " [ >> ] RUNNING SCRIPT UPDATE CHECK                   "
-newrevision=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
-if [ "$newrevision" -gt "$REVISION" ]; then update;
+NEWREV=$(curl -s -B -L https://raw.github.com/CanadianJeff/BackTrack-5-Scripts/master/VERSION)
+if [ "$NEWREV" -gt "$REVISION" ]; then update;
 else
 DATETIME; echo " [$OK] NO UPDATE REQUIRED                             "
 echo "+-----------------------------------------------------+";
@@ -229,7 +266,8 @@ read -e -p "| [$OK] Updated Press Enter To Exit " enter
 echo "+-----------------------------------------------------+"
 exit 0
 else
-echo "Update [$FAIL]..."
+echo "| [$FAIL] FAILED...                                    "
+echo "+-----------------------------------------------------+"
 read -e -p "Try Again? " enter
 update
 fi
@@ -249,38 +287,39 @@ echo "";
 exit 0; fi
 if [ -f $settings ]; then
 DATETIME; echo " [$OK] Loading Settings From $settings"
-LOADCONF=0; else LOADCONF=0; fi
+LOADCONF=1; else LOADCONF=0; fi
 if [ "$mydistro" = "BackTrack" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion Release $myrelease "; fi
 if [ "$mydistro" = "Kali" ]; then DATETIME; echo " [$OK] $mydistro Release $myrelease "; fi
 if [ "$mydistro" = "Ubuntu" ]; then DATETIME; echo " [$OK] $mydistro Version $myversion "; fi
 DATETIME; echo " [ >> ] Removing Conflicting Installed Packages!";
 dpkg -P --force-depends hostapd 2>/dev/null
 DATETIME; echo " [ >> ] Checking For Missing Packages!";
-critarray=( aircrack-ng iptables dnsmasq xterm python macchanger wget perl brctl )
+critarray=( aircrack-ng iptables dnsmasq xterm python wget perl brctl )
 for depend in ${critarray[@]}; do
 type -P $depend &>/dev/null || { DATETIME; echo " [$CRIT] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
-warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff dhcpd3 dhcpd ettercap hostapd mdk3 msfconsole sslstrip urlsnarf svn nmap )
+warnarray=( airdrop-ng arpspoof dpkg driftnet dsniff dhcpd3 dhcpd ettercap hostapd mdk3 msfconsole sslstrip macchanger urlsnarf svn nmap )
 for depend in ${warnarray[@]}; do
 type -P $depend &>/dev/null || { DATETIME; echo " [$WARN] $depend"; echo "$depend" >> $sessionfolder/logs/missing.log; };
 done
 DATETIME; echo " [ >> ] Saved To $sessionfolder/logs/missing.log";
 }
 function uninstalldeps(){
-echo "[>] REMOVING AIRCRACK-NG!";
+echo "[ >> ] REMOVING AIRCRACK-NG!";
 cd /usr/src/aircrack-ng;
 make uninstall &>/dev/null;
+make clean &>/dev/null;
 cd /usr/src;
 rm -rf aircrack-ng;
-echo "[>] REMOVING HOSTAPD!";
+echo "[ >> ] REMOVING HOSTAPD!";
 cd /usr/src/hostapd-1.0-karma/hostapd;
 make clean &>/dev/null;
 rm -rf /usr/local/bin/hostapd;
 rm -rf /usr/local/bin/hostapd_cli;
-DATETIME; echo "[>] DONE REMOVING DEPS";
+DATETIME; echo "[ >> ] DONE REMOVING DEPS";
 }
 function installdeps(){
-DATETIME; echo "[>] INSTALLING DEPENDS! (internet required)";
+DATETIME; echo "[ >> ] INSTALLING DEPENDS! (internet required)";
 DATETIME; echo "[$WARN] PLEASE ENABLE UNIVERSE IN /etc/apt/sources.list!!!!";
 sleep 5
 apt-get update;
@@ -290,20 +329,20 @@ apt-get install libnl-dev -y;
 # apt-get install python-dev -y;
 [ -d "/usr/src/aircrack-ng" ] || installaircrack;
 [ -d "/usr/src/hostapd-1.0-karma" ] || installhostapd;
-installlighttpd;
-DATETIME; echo "[>] DONE INSTALLING DEPS";
+# installlighttpd;
+DATETIME; echo "[ >> ] DONE INSTALLING DEPS";
 }
 function installaircrack(){
 dpkg --force-depends --purge aircrack-ng;
-DATETIME; echo "[>] INSTALLING AIRCRACK-NG! (internet required)";
+DATETIME; echo "[ >> ] INSTALLING AIRCRACK-NG! (internet required)";
 cd /usr/src;
 rm -rf aircrack-ng*;
-DATETIME; echo "[>] CHECKING OUT AIRCRACK-NG!";
+DATETIME; echo "[ >> ] CHECKING OUT AIRCRACK-NG!";
 svn co http://svn.aircrack-ng.org/trunk/ aircrack-ng &>/dev/null;
 cd aircrack-ng;
 make uninstall &>/dev/null;
 make clean &>/dev/null;
-DATETIME; echo "[>] STARTING MAKE! (watch for errors)";
+DATETIME; echo "[ >> ] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/aircrack_make.log;
 make install &>$sessionfolder/logs/aircrack_make_install.log;
@@ -313,12 +352,12 @@ airodump-ng-oui-update;
 cd $initpath;
 }
 function installhostapd(){
-DATETIME; echo "[>] INSTALLING HOSTAPD! (internet required)";
+DATETIME; echo "[ >> ] INSTALLING HOSTAPD! (internet required)";
 cd /usr/src;
 wget -a $sessionfolder/logs/wget.log -t 3 -T 10 http://www.digininja.org/files/hostapd-1.0-karma.tar.bz2;
 tar -xf hostapd-1.0-karma.tar.bz2;
 cd hostapd-1.0-karma/hostapd/;
-DATETIME; echo "[>] STARTING MAKE! (watch for errors)";
+DATETIME; echo "[ >> ] STARTING MAKE! (watch for errors)";
 sleep 5;
 make &>$sessionfolder/logs/hostapd_make.log;
 make install &>$sessionfolder/logs/hostapd_make_install.log;
@@ -330,7 +369,7 @@ cd $initpath;
 # PIDS AND CLEANUP #
 ####################
 function pspids(){
-pidarray=( airbase-ng dnsmasq hostapd dumpcap wireshark lighttpd )
+pidarray=( airbase-ng dnsmasq hostapd dumpcap wireshark )
 for program in ${pidarray[@]}; do
 pgrep $program > $sessionfolder/pids/$program.pid;
 done
@@ -349,6 +388,7 @@ sleep 2;
 pspids;
 DATETIME; echo "Killing Airbase-NG";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/airbase-ng.pid)` &>/dev/null;
+DATETIME; echo "Killed Airbase-NG";
 done
 while [ -s $sessionfolder/pids/hostapd.pid ]; do
 airmon-ng stop mon.$TAPIFACE &>/dev/null;
@@ -356,20 +396,24 @@ sleep 2;
 pspids;
 DATETIME; echo "Killing Hostapd";
 kill -9 `awk '{ print $1 }' < <(cat $sessionfolder/pids/hostapd.pid)` &>/dev/null;
+DATETIME; echo "Killed Hostapd";
 done
 while [ -s $sessionfolder/pids/dnsmasq.pid ]; do
 sleep 2;
 pspids;
 DATETIME; echo "Killing DNSMASQ";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dnsmasq.pid)` &>/dev/null;
+DATETIME; echo "Killed DNSMASQ";
 done
 while [ -s $sessionfolder/pids/dumpcap.pid ]; do
 sleep 2;
 pspids;
 DATETIME; echo "Killing DUMPCAP";
 kill `awk '{ print $1 }' < <(cat $sessionfolder/pids/dumpcap.pid)` &>/dev/null;
+DATETIME; echo "Killed DUMPCAP";
 done
 for pid in `ls $sessionfolder/pids/*.pid 2>$LOG`; do if [ -s "$pid" ]; then
+DATETIME; echo "Killing ($pid)";
 kill `cat $pid 2>$LOG` &>/dev/null;
 fi; done
 if [ -f /var/run/dhcpd/$TAPIFACE.pid ]; then
@@ -379,7 +423,7 @@ killall -9 airodump-ng aireplay-ng mdk3 driftnet urlsnarf dsniff &>/dev/null
 fw_stop
 }
 function cleanup(){
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
+# echo "nameserver 8.8.8.8" > /etc/resolv.conf
 echo > $dhcpconf
 rm -rf $lockfile
 # service network-manager restart
@@ -430,11 +474,11 @@ read -e -p "DNS Spoof What Website [#]: " DNSURL
 if [ "$DNSURL" = "" ]; then DNSURL=\#; fi
 echo ""
 echo "[>] CREATING .CONF FILE WITH SETTINGS...";
-echo "ATHIFACE=$ATHIFACE" > $settings
-echo "WANIFACE=$WANIFACE" >> $settings
+echo "WANIFACE=$WANIFACE" > $settings
 echo "BRLANIFACE=$BRLANIFACE" >> $settings
-echo "SPOOFMAC=$SPOOFMAC" >> $settings
-echo "ESSID=$ESSID" >> $settings
+echo "ATHIFACE=$ATHIFACE" >> $settings
+#echo "SPOOFMAC=$SPOOFMAC" >> $settings
+echo "ESSID='$ESSID'" >> $settings
 echo "CHAN=$CHAN" >> $settings
 echo "MTU=$MTU" >> $settings
 echo "BEACONS=$BEAINT" >> $settings
@@ -444,6 +488,9 @@ echo ""
 echo "Please Take This Time To Check And Verify [$settings]"
 echo ""
 read -e -p "Press Enter To Continue" enter
+echo ""
+}
+function importsettings(){
 echo ""
 }
 ######################
@@ -543,15 +590,14 @@ echo "}" >> $dhcpconf
 dhcpdserver
 }
 function dnsmasqconfig(){
-dnsmasqconf=$sessionfolder/config/dnsmasq.conf
 echo "dhcp-authoritative" > $dnsmasqconf
 echo "domain-needed" >> $dnsmasqconf
 echo "localise-queries" >> $dnsmasqconf
 #echo "read-ethers" >> $dnsmasqconf
 #echo "bogus-priv" >> $dnsmasqconf
 #echo "enable-tftp" >> $dnsmasqconf
-echo "domain=wirelesslan" >> $dnsmasqconf
-echo "server=/wirelesslan/" >> $dnsmasqconf
+echo "domain=hackerslan" >> $dnsmasqconf
+echo "server=/hackerslan/" >> $dnsmasqconf
 echo "dhcp-leasefile=$sessionfolder/dnsmasq.leases" >> $dnsmasqconf
 echo "resolv-file=$sessionfolder/resolv.conf.auto" >> $dnsmasqconf
 echo "log-facility=$sessionfolder/logs/dnsmasq.log" >> $dnsmasqconf
@@ -563,12 +609,12 @@ echo "dhcp-host=$ATHIFACEMAC,$TAPIP" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
 echo "address=/$DNSURL/$TAPIP" >> $dnsmasqconf
 echo "ptr-record=$arpaaddr.in-addr.arpa,$hostname" >> $dnsmasqconf
+#echo "" >> $dnsmasqconf
+#echo "dhcp-range=apple,10.0.2.1,10.0.2.254,$NETMASK,$DHCPL" >> $dnsmasqconf
+#echo "dhcp-range=android,10.0.3.1,10.0.3.254,$NETMASK,$DHCPL" >> $dnsmasqconf
+#echo "dhcp-range=gaming,10.0.4.1,10.0.4.254,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
-echo "dhcp-range=apple,10.0.2.1,10.0.2.254,$NETMASK,$DHCPL" >> $dnsmasqconf
-echo "dhcp-range=android,10.0.3.1,10.0.3.254,$NETMASK,$DHCPL" >> $dnsmasqconf
-echo "dhcp-range=gaming,10.0.4.1,10.0.4.254,$NETMASK,$DHCPL" >> $dnsmasqconf
-echo "" >> $dnsmasqconf
-echo "dhcp-range=wirelesslan,$HOSTMIN,$HOSTMAX,$NETMASK,$DHCPL" >> $dnsmasqconf
+echo "dhcp-range=hackerslan,$HOSTMIN,$HOSTMAX,$NETMASK,$DHCPL" >> $dnsmasqconf
 echo "no-dhcp-interface=$WANIFACE" >> $dnsmasqconf
 echo "" >> $dnsmasqconf
 echo "# Anything Under This Is Custom Added!" >> $dnsmasqconf
@@ -578,10 +624,10 @@ echo "log-dhcp" >> $dnsmasqconf
 #echo "expand-hosts" >> $dnsmasqconf
 echo "interface=$BRLANIFACE" >> $dnsmasqconf
 echo "dhcp-lease-max=102" >> $dnsmasqconf
-echo "dhcp-option=wirelesslan,3,$TAPIP" >> $dnsmasqconf
+echo "dhcp-option=hackerslan,3,$TAPIP" >> $dnsmasqconf
 echo "dhcp-option=252,\"\n\"" >> $dnsmasqconf
 echo "dhcp-option=42,$TAPIP" >> $dnsmasqconf
-#echo "dhcp-option=wirelesslan,3," >> $dnsmasqconf
+#echo "dhcp-option=hackerslan,3," >> $dnsmasqconf
 echo "nameserver $TAPIP" > $sessionfolder/resolv.conf.auto
 }
 function lighttpdconfig(){
@@ -908,7 +954,7 @@ TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
 STARTTERM
 }
 function startdnsmasqresolv(){
-echo "dhcp-option=wirelesslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
+echo "dhcp-option=hackerslan,6,8.8.8.8,$TAPIP" >> $dnsmasqconf
 DATETIME; echo "* DNSMASQ With Internet *"
 TERMTITLE="DNSMASQ-INTERNET"
 TERMCMD="dnsmasq --no-daemon --except-interface=lo -C $dnsmasqconf"
@@ -1043,6 +1089,8 @@ while [ "$BRLANDHCP" = "No" ]; do
 echo ""
 echo "* [$FAIL] No DHCP Server Found On $WANIFACE *"
 rm $sessionfolder/logs/bridge.log
+echo "* [$FAIL] Trying Again in 5 Seconds *"
+sleep 5
 done
 pinggateway
 }
@@ -1576,7 +1624,7 @@ if [ "$DHCPSERVER" = "3" ]; then udhcpdconfig; fi
 if [ "$DHCPSERVER" = "4" ]; then nodhcpserver; fi
 if [ "$mode" = "2" ]; then DHCPSERVER=4; fi
 if [ "$mode" = "1" ]; then
-echo "# Generated by accesspoint.sh" > /etc/resolv.conf
+# echo "# Generated by accesspoint.sh" > /etc/resolv.conf
 # echo "nameserver $TAPIP" >> /etc/resolv.conf
 fi
 if [ "$mode" = "2" ]; then

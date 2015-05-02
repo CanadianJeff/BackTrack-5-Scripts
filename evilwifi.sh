@@ -1592,7 +1592,7 @@ internetcheck
 depends
 apachesetup
 # apachecheck
-if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
+# if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then checkupdate; fi
 if [ "$INTERNET" = "TRUE" ] && [ "$DNS" = "TRUE" ]; then internetmenu; fi
 if [ "$internetmenu" = "1" ]; then installdeps; fi
 if [ "$internetmenu" = "2" ]; then installdeps; fi
